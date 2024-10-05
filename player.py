@@ -45,6 +45,16 @@ class Player(Sprite):
                     Vector2(self.pos.x + self.image.get_width() / 2, self.pos.y),
                     game.bullet_group,
                 )
+                player_center_pos = Vector2(
+                    self.pos.x + self.image.get_width() / 2,
+                    self.pos.y + self.image.get_height() / 2,
+                )
+                direction = (pygame.mouse.get_pos() - player_center_pos).normalize()
+                game.turret_bullet_factory.create_bullet(
+                    player_center_pos,
+                    direction,
+                    game.bullet_group,
+                )
                 self.cannon_timer += dt
         elif self.cannon_timer > CANNON_DELAY:
             self.cannon_timer = 0

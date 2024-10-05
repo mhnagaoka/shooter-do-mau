@@ -21,7 +21,7 @@ class Bullet(Sprite):
         self.pos = pos
 
     def update(self, game: "shooter.Shooter") -> None:
-        self.pos.y = self.pos.y - 900 * game.dt
+        self.pos.y = self.pos.y - 1200 * game.dt
         if self.pos.y < 0:
             self.kill()
         self.rect.center = self.pos

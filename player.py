@@ -3,8 +3,8 @@ from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
-CANNON_DELAY = 0.200
-
+CANNON_DELAY = 0.300
+TURRET_DELAY = 0.200
 
 class Player(Sprite):
     def __init__(self, images: list[Surface], *groups) -> None:
@@ -14,11 +14,13 @@ class Player(Sprite):
         self.rect = self.image.get_rect()
         self.pos = None
         self.cannon_timer = 0
+        self.turret_timer = 0
 
     def _handle_input(self, game: "shooter.Shooter") -> None:
         dt = game.dt
         self.image = self.images[2]
         keys = pygame.key.get_pressed()
+        left_button, _, _ = pygame.mouse.get_pressed()
         if keys[pygame.K_w]:
             self.pos.y -= 450 * dt
             if self.pos.y < 0:
@@ -45,6 +47,13 @@ class Player(Sprite):
                     Vector2(self.pos.x + self.image.get_width() / 2, self.pos.y),
                     game.bullet_group,
                 )
+                self.cannon_timer += dt
+        elif self.cannon_timer > CANNON_DELAY:
+            self.cannon_timer = 0
+        else:
+            self.cannon_timer += dt
+        if self.turret_timer <= 0:
+            if left_button:
                 player_center_pos = Vector2(
                     self.pos.x + self.image.get_width() / 2,
                     self.pos.y + self.image.get_height() / 2,
@@ -55,11 +64,11 @@ class Player(Sprite):
                     direction,
                     game.bullet_group,
                 )
-                self.cannon_timer += dt
-        elif self.cannon_timer > CANNON_DELAY:
-            self.cannon_timer = 0
+                self.turret_timer += dt
+        elif self.turret_timer > TURRET_DELAY:
+            self.turret_timer = 0
         else:
-            self.cannon_timer += dt
+            self.turret_timer += dt
 
     def update(self, game: "shooter.Shooter") -> None:
         if self.pos is None:

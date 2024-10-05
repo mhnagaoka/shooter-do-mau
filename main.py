@@ -8,7 +8,13 @@ screen = pygame.display.set_mode((1080, 1080))
 clock = pygame.time.Clock()
 
 sprite_sheet = pygame.image.load("assets/ships.png").convert_alpha()
-shooter = Shooter(screen, sprite_sheet)
+bullet_sheet = pygame.image.load("assets/bullet.png").convert_alpha()
+bullet2_sheet = pygame.image.load("assets/bullet-2.png").convert_alpha()
+laser_sheet = pygame.image.load("assets/laser.png").convert_alpha()
+laser2_sheet = pygame.image.load("assets/laser-2.png").convert_alpha()
+game = Shooter(
+    screen, [sprite_sheet, bullet_sheet, bullet2_sheet, laser_sheet, laser2_sheet]
+)
 dt = 0
 running = True
 
@@ -22,7 +28,7 @@ while running:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill((50, 50, 50))
 
-    shooter.process_frame(dt)
+    game.process_frame(dt)
 
     # flip() the display to put your work on screen
     pygame.display.flip()

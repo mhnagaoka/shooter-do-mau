@@ -2,6 +2,15 @@ version = 1
 requires-python = ">=3.12"
 
 [[package]]
+name = "geomdl"
+version = "5.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/d5/036ea64422c1723c9ddc749984fe97f9d1beee496e407093544b05e9da72/geomdl-5.3.1.tar.gz", hash = "sha256:e81a31b4d5f111267b16045ba1d9539235a98b2cff5e4bad18f7ddcd4cb804c8", size = 141095 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/32/559b938e6654ecdf87d256ac2bfd9a25464560a312a58aaf25076d0ce48e/geomdl-5.3.1-py2.py3-none-any.whl", hash = "sha256:0f36a4bacde5b218c73aadc69ff152e7f7fb3aa7260df0e6647a701a5351d76a", size = 147573 },
+]
+
+[[package]]
 name = "pygame"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -28,8 +37,12 @@ name = "shooter-do-mau"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "geomdl" },
     { name = "pygame" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pygame", specifier = ">=2.6.1" }]
+requires-dist = [
+    { name = "geomdl", specifier = ">=5.3.1" },
+    { name = "pygame", specifier = ">=2.6.1" },
+]

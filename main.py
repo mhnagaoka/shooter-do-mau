@@ -1,6 +1,6 @@
 # Example file showing a circle moving on screen
 import pygame
-from shooter import Shooter
+from shooter_game import ShooterGame
 
 # pygame setup
 pygame.init()
@@ -15,7 +15,7 @@ laser_sheet = pygame.image.load("assets/laser.png").convert_alpha()
 laser2_sheet = pygame.image.load("assets/laser-2.png").convert_alpha()
 crosshair_sheet = pygame.image.load("assets/crosshair.png").convert_alpha()
 crosshair2_sheet = pygame.image.load("assets/crosshair-2.png").convert_alpha()
-game = Shooter(
+game = ShooterGame(
     screen,
     [
         sprite_sheet,

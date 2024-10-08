@@ -6,6 +6,7 @@ from pygame.surface import Surface
 CANNON_DELAY = 0.300
 TURRET_DELAY = 0.200
 
+
 class Player(Sprite):
     def __init__(self, images: list[Surface], *groups) -> None:
         super().__init__(*groups)
@@ -20,7 +21,7 @@ class Player(Sprite):
         dt = game.dt
         self.image = self.images[2]
         keys = pygame.key.get_pressed()
-        left_button, _, _ = pygame.mouse.get_pressed()
+        left_button, _, right_button = pygame.mouse.get_pressed()
         if keys[pygame.K_w]:
             self.pos.y -= 450 * dt
             if self.pos.y < 0:
@@ -42,7 +43,7 @@ class Player(Sprite):
                 self.pos.x = game.screen.get_width() - self.image.get_width()
                 self.image = self.images[2]
         if self.cannon_timer <= 0:
-            if keys[pygame.K_SPACE]:
+            if keys[pygame.K_SPACE] or left_button:
                 game.bullet_factory.create_bullet(
                     Vector2(self.pos.x + self.image.get_width() / 2, self.pos.y),
                     game.bullet_group,
@@ -53,7 +54,7 @@ class Player(Sprite):
         else:
             self.cannon_timer += dt
         if self.turret_timer <= 0:
-            if left_button:
+            if right_button:
                 player_center_pos = Vector2(
                     self.pos.x + self.image.get_width() / 2,
                     self.pos.y + self.image.get_height() / 2,

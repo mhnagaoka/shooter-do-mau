@@ -6,6 +6,7 @@ from player import Player
 from bullet import BulletFactory
 from turret_bullet import TurretBulletFactory
 from crosshair import Crosshair
+import enemy
 
 
 def _crop_sprites(sprite_sheets: list[Surface]):
@@ -28,7 +29,7 @@ def _crop_sprites(sprite_sheets: list[Surface]):
     return (cropped_sprites, scaled_sprites)
 
 
-class Shooter:
+class ShooterGame:
     def __init__(self, screen: Surface, sprite_sheets: list[Surface]) -> None:
         self.screen = screen
         self.running = True
@@ -37,7 +38,6 @@ class Shooter:
         self.player_pos = pygame.Vector2(
             screen.get_width() / 2, screen.get_height() * 0.75
         )
-        self.player_ship = self.scaled_sprites[2]
         self.player_group = pygame.sprite.GroupSingle()
         self.player = Player(self.scaled_sprites, self.player_group)
         self.crosshair_group = pygame.sprite.GroupSingle()
@@ -45,6 +45,11 @@ class Shooter:
         self.bullet_group = pygame.sprite.RenderPlain()
         self.bullet_factory = BulletFactory([self.scaled_sprites[9]])
         self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
+        self.enemy_group = pygame.sprite.RenderPlain()
+        # enemy.Enemy([self.scaled_sprites[5]], self.enemy_group)
+        # enemy.DumbEnemy([self.scaled_sprites[5]], self.enemy_group)
+        enemy.PeriodicEnemyFactory(0.5, self.enemy_group)
+        #enemy.SquadronEnemyFactory(0.2, 5, self.enemy_group)
 
     def process_frame(self, dt: float):
         self.dt = dt
@@ -52,9 +57,14 @@ class Shooter:
         self.player_group.update(self)
         self.crosshair_group.update(self)
         self.bullet_group.update(self)
+        self.enemy_group.update(self)
+
         self.player_group.draw(self.screen)
         self.crosshair_group.draw(self.screen)
         self.bullet_group.draw(self.screen)
+        self.enemy_group.draw(self.screen)
+
+        pygame.sprite.groupcollide(self.bullet_group, self.enemy_group, True, True)
 
         # mouse_pos = pygame.mouse.get_pos()
         # pygame.draw.line(

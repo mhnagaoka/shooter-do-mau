@@ -5,6 +5,7 @@ from shooter_game import ShooterGame
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((1080, 1080))
+pygame.display.set_caption("Shooter do Mau")
 pygame.mouse.set_visible(False)
 clock = pygame.time.Clock()
 

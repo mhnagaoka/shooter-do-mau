@@ -44,7 +44,7 @@ python main.py
 
 ### Spline tool
 
-There is a spline drawing tool that (shamelessly) I copied from
+There is a spline drawing tool that I (shamelessly) copied from
 [sk-Prime/simple_pygames](https://github.com/sk-Prime/simple_pygames) and slightly modified to print the
 BSpline's control points.
 

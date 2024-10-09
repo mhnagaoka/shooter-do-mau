@@ -8,3 +8,5 @@ dependencies = [
     "geomdl>=5.3.1",
     "pygame>=2.6.1",
 ]
+[tool.ruff]
+exclude = ["bspline.py"]

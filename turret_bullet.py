@@ -1,8 +1,8 @@
-import pygame
+from typing import TYPE_CHECKING
+
 from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shooter_game import ShooterGame

@@ -1,10 +1,10 @@
+from typing import TYPE_CHECKING
+
 import pygame
-from pygame import Rect, Vector2
+from geomdl import BSpline, utilities
+from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-from geomdl import BSpline
-from geomdl import utilities
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shooter_game import ShooterGame

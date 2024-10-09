@@ -1,12 +1,11 @@
 import pygame
 from pygame import Surface
-from pygame.sprite import Sprite
 
-from player import Player
-from bullet import BulletFactory
-from turret_bullet import TurretBulletFactory
-from crosshair import Crosshair
 import enemy
+from bullet import BulletFactory
+from crosshair import Crosshair
+from player import Player
+from turret_bullet import TurretBulletFactory
 
 
 def _crop_sprites(sprite_sheets: list[Surface]):

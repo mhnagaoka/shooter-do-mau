@@ -2,6 +2,10 @@ import pygame
 from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shooter_game import ShooterGame
 
 
 class BulletFactory:
@@ -20,7 +24,7 @@ class Bullet(Sprite):
         self.rect = self.image.get_rect()
         self.pos = pos
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: "ShooterGame") -> None:
         self.pos.y = self.pos.y - 1200 * game.dt
         if self.pos.y < 0:
             self.kill()

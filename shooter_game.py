@@ -26,6 +26,8 @@ def _crop_sprites(sprite_sheets: list[Surface]):
         sprite_sheets[6].subsurface((0, 0, 31, 31)),  # 11 crosshair-2
     ]
     scaled_sprites = [pygame.transform.scale2x(s) for s in cropped_sprites]
+    # scaled_sprites = [pygame.transform.scale(s, (s.get_width() * 1.5, s.get_height() * 1.5)) for s in cropped_sprites]
+    # scaled_sprites = cropped_sprites[:]
     return (cropped_sprites, scaled_sprites)
 
 
@@ -33,7 +35,7 @@ class ShooterGame:
     def __init__(self, screen: Surface, sprite_sheets: list[Surface]) -> None:
         self.screen = screen
         self.running = True
-        self.dt = 0
+        self.dt = 0.0
         self.cropped_sprites, self.scaled_sprites = _crop_sprites(sprite_sheets)
         self.player_pos = pygame.Vector2(
             screen.get_width() / 2, screen.get_height() * 0.75
@@ -47,9 +49,6 @@ class ShooterGame:
         self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
         self.enemy_group = pygame.sprite.RenderPlain()
         self.enemy_factory_group = pygame.sprite.Group()
-        # enemy.Enemy([self.scaled_sprites[5]], self.enemy_group)
-        # enemy.DumbEnemy([self.scaled_sprites[5]], self.enemy_group)
-        # enemy.PeriodicEnemyFactory(0.5, self.enemy_factory_group)
         enemy.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
 
     def process_frame(self, dt: float):
@@ -89,40 +88,3 @@ class ShooterGame:
         self.enemy_group.draw(self.screen)
 
         pygame.sprite.groupcollide(self.bullet_group, self.enemy_group, True, True)
-
-        # mouse_pos = pygame.mouse.get_pos()
-        # pygame.draw.line(
-        #     self.screen,
-        #     "white",
-        #     (
-        #         self.player.pos.x + self.player_ship.get_width() / 2,
-        #         self.player.pos.y + self.player_ship.get_height() / 2,
-        #     ),
-        #     mouse_pos,
-        # )
-
-        # pygame.draw.rect(self.screen, "red", self.player_ship.get_rect(topleft=self.player_pos), 2)
-        # self.screen.blit(self.player_ship, self.player_pos)
-
-        # self.player_ship = self.scaled_sprites[2]
-        # keys = pygame.key.get_pressed()
-        # if keys[pygame.K_w]:
-        #     self.player_pos.y -= 450 * dt
-        #     if self.player_pos.y < 0:
-        #         self.player_pos.y = 0
-        # if keys[pygame.K_s]:
-        #     self.player_pos.y += 450 * dt
-        #     if self.player_pos.y > self.screen.get_height() - self.player_ship.get_height():
-        #         self.player_pos.y = self.screen.get_height() - self.player_ship.get_height()
-        # if keys[pygame.K_a]:
-        #     self.player_pos.x -= 450 * dt
-        #     self.player_ship = self.scaled_sprites[0]
-        #     if self.player_pos.x < 0:
-        #         self.player_pos.x = 0
-        #         self.player_ship = self.scaled_sprites[2]
-        # if keys[pygame.K_d]:
-        #     self.player_pos.x += 450 * dt
-        #     self.player_ship = self.scaled_sprites[3]
-        #     if self.player_pos.x > self.screen.get_width() - self.player_ship.get_width():
-        #         self.player_pos.x = self.screen.get_width() - self.player_ship.get_width()
-        #         self.player_ship = self.scaled_sprites[2]

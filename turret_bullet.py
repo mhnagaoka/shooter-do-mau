@@ -2,13 +2,17 @@ import pygame
 from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shooter_game import ShooterGame
 
 
 class TurretBulletFactory:
     def __init__(self, images: list[Surface]) -> None:
         self.images = images
 
-    def create_bullet(self, pos: Vector2, direction: Vector2, *groups) -> "Bullet":
+    def create_bullet(self, pos: Vector2, direction: Vector2, *groups) -> "TurretBulletFactory":
         return TurretBullet(self.images, pos, direction, *groups)
 
 
@@ -23,7 +27,7 @@ class TurretBullet(Sprite):
         self.pos = pos
         self.direction = direction
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: "ShooterGame") -> None:
         self.pos = self.pos + (self.direction * 600 * game.dt)
         if (
             self.pos.y < 0

@@ -4,7 +4,10 @@ from pygame.sprite import Sprite
 from pygame.surface import Surface
 from geomdl import BSpline
 from geomdl import utilities
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from shooter_game import ShooterGame
 
 def _interpolation_points(points: list[(float, float)]) -> list[(float, float)]:
     result = []
@@ -94,7 +97,7 @@ class SplineEnemy(Sprite):
         ]
         self.pos = Vector2(self.trajectory[0][0], self.trajectory[0][1])
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: 'ShooterGame') -> None:
         # for i in range(len(self.trajectory)):
         #     pygame.draw.circle(game.screen, "red", self.trajectory[i], 1)
         if self.current_point < len(self.trajectory):
@@ -121,7 +124,7 @@ class SquadronEnemyFactory(Sprite):
         self.trajectory_number = trajectory_number
         self.spawned = []
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: 'ShooterGame') -> None:
         if self.count_down <= 0:
             if self.size > 0:
                 self.spawned.append(
@@ -154,7 +157,7 @@ class CompositeEnemyFactory(Sprite):
     def add_factory(self, factory: Sprite) -> None:
         self.enemy_factories.append(factory)
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: 'ShooterGame') -> None:
         if self.current_factory < len(self.enemy_factories):
             self.enemy_factories[self.current_factory].update(game)
             if not self.enemy_factories[self.current_factory].alive():
@@ -177,7 +180,7 @@ class ParallelEnemyFactory(Sprite):
     def add_factory(self, factory: Sprite) -> None:
         self.enemy_factories.append(factory)
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: 'ShooterGame') -> None:
         all_dead = True
         for f in self.enemy_factories:
             if f.alive():

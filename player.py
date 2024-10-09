@@ -2,6 +2,10 @@ import pygame
 from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shooter_game import ShooterGame
 
 CANNON_DELAY = 0.300
 TURRET_DELAY = 0.200
@@ -17,7 +21,7 @@ class Player(Sprite):
         self.cannon_timer = 0
         self.turret_timer = 0
 
-    def _handle_input(self, game: "shooter.Shooter") -> None:
+    def _handle_input(self, game: "ShooterGame") -> None:
         dt = game.dt
         self.image = self.images[2]
         keys = pygame.key.get_pressed()
@@ -71,7 +75,7 @@ class Player(Sprite):
         else:
             self.turret_timer += dt
 
-    def update(self, game: "shooter.Shooter") -> None:
+    def update(self, game: "ShooterGame") -> None:
         if self.pos is None:
             self.pos = Vector2(
                 game.screen.get_width() / 2 - self.rect.width / 2,

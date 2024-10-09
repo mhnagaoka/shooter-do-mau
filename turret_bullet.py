@@ -12,7 +12,9 @@ class TurretBulletFactory:
     def __init__(self, images: list[Surface]) -> None:
         self.images = images
 
-    def create_bullet(self, pos: Vector2, direction: Vector2, *groups) -> "TurretBulletFactory":
+    def create_bullet(
+        self, pos: Vector2, direction: Vector2, *groups
+    ) -> "TurretBulletFactory":
         return TurretBullet(self.images, pos, direction, *groups)
 
 

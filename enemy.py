@@ -108,22 +108,6 @@ class SplineEnemy(Sprite):
         self.rect.center = self.pos
 
 
-class PeriodicEnemyFactory(Sprite):
-    def __init__(self, period: float, size: int, *groups) -> None:
-        super().__init__(*groups)
-        self.count_down = 0
-        self.image = Surface((0, 0))
-        self.rect = self.image.get_rect()
-        self.period = period
-
-    def update(self, game: "shooter.Shooter") -> None:
-        if self.count_down <= 0:
-            DumbEnemy([game.scaled_sprites[5]], game.enemy_group)
-            self.count_down = self.period
-        else:
-            self.count_down -= game.dt
-
-
 class SquadronEnemyFactory(Sprite):
     def __init__(
         self, period: float, size: int, trajectory_number: int, *groups
@@ -140,19 +124,13 @@ class SquadronEnemyFactory(Sprite):
     def update(self, game: "shooter.Shooter") -> None:
         if self.count_down <= 0:
             if self.size > 0:
-                if self.trajectory_number >= 0:
-                    self.spawned.append(
-                        SplineEnemy(
-                            [game.scaled_sprites[5]],
-                            self.trajectory_number,
-                            game.enemy_group,
-                        )
+                self.spawned.append(
+                    SplineEnemy(
+                        [game.scaled_sprites[5]],
+                        self.trajectory_number,
+                        game.enemy_group,
                     )
-                else:
-                    self.spawned.append(
-                        DumbEnemy([game.scaled_sprites[5]], game.enemy_group)
-                    )
-
+                )
                 self.size -= 1
                 self.count_down = self.period
             else:

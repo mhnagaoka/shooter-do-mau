@@ -46,18 +46,42 @@ class ShooterGame:
         self.bullet_factory = BulletFactory([self.scaled_sprites[9]])
         self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
         self.enemy_group = pygame.sprite.RenderPlain()
+        self.enemy_factory_group = pygame.sprite.Group()
         # enemy.Enemy([self.scaled_sprites[5]], self.enemy_group)
         # enemy.DumbEnemy([self.scaled_sprites[5]], self.enemy_group)
-        enemy.PeriodicEnemyFactory(0.5, self.enemy_group)
-        #enemy.SquadronEnemyFactory(0.2, 5, self.enemy_group)
+        # enemy.PeriodicEnemyFactory(0.5, self.enemy_factory_group)
+        enemy.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
 
     def process_frame(self, dt: float):
         self.dt = dt
+
+        if not any(sprite.alive() for sprite in self.enemy_factory_group):
+            enemy.ParallelEnemyFactory(
+                [
+                    enemy.CompositeEnemyFactory(
+                        [
+                            enemy.SquadronEnemyFactory(0.15, 5, 0),
+                            enemy.SquadronEnemyFactory(0.15, 5, 1),
+                            enemy.SquadronEnemyFactory(0.15, 5, 2),
+                            enemy.SquadronEnemyFactory(0.15, 5, 3),
+                        ]
+                    ),
+                    enemy.CompositeEnemyFactory(
+                        [
+                            enemy.SquadronEnemyFactory(0.5, 6, 4),
+                            enemy.SquadronEnemyFactory(0.5, 6, 5),
+                            enemy.SquadronEnemyFactory(0.5, 6, 6),
+                        ]
+                    ),
+                ],
+                self.enemy_factory_group,
+            )
 
         self.player_group.update(self)
         self.crosshair_group.update(self)
         self.bullet_group.update(self)
         self.enemy_group.update(self)
+        self.enemy_factory_group.update(self)
 
         self.player_group.draw(self.screen)
         self.crosshair_group.draw(self.screen)

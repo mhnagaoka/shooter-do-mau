@@ -17,10 +17,10 @@ def _crop_sprites(sprite_sheets: list[Surface]):
         sprite_sheets[0].subsurface((182, 38, 35, 37)),  # 3 player banking right 1
         sprite_sheets[0].subsurface((222, 38, 35, 37)),  # 4 player banking right 2
         sprite_sheets[0].subsurface((40, 147, 45, 37)),  # 5 green enemy
-        sprite_sheets[1].subsurface((0, 0, 8, 8)),  # 6 bullet
+        sprite_sheets[1].subsurface((0, 0, 6, 8)),  # 6 bullet
         sprite_sheets[2].subsurface((0, 0, 8, 8)),  # 7 bullet-2
         sprite_sheets[3].subsurface((0, 0, 32, 32)),  # 8 laser
-        sprite_sheets[4].subsurface((0, 0, 32, 32)),  # 9 laser-2
+        sprite_sheets[4].subsurface((0, 0, 4, 32)),  # 9 laser-2
         sprite_sheets[5].subsurface((0, 0, 11, 11)),  # 10 crosshair
         sprite_sheets[6].subsurface((0, 0, 31, 31)),  # 11 crosshair-2
     ]

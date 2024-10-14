@@ -1,6 +1,7 @@
 import pygame
 from pygame import Surface
 
+from animation import Animation
 import enemy
 from bullet import BulletFactory
 from crosshair import Crosshair
@@ -19,12 +20,20 @@ def _crop_sprites(sprite_sheets: list[Surface]):
         sprite_sheets[0].subsurface((40, 147, 45, 37)),  # 5 green enemy
         sprite_sheets[1].subsurface((0, 0, 6, 8)),  # 6 bullet
         sprite_sheets[2].subsurface((0, 0, 8, 8)),  # 7 bullet-2
-        sprite_sheets[3].subsurface((0, 0, 32, 32)),  # 8 laser
-        sprite_sheets[4].subsurface((0, 0, 4, 32)),  # 9 laser-2
-        sprite_sheets[5].subsurface((0, 0, 11, 11)),  # 10 crosshair
-        sprite_sheets[6].subsurface((0, 0, 31, 31)),  # 11 crosshair-2
+        sprite_sheets[3].subsurface((0, 0, 8, 8)),  # 8 bullet-3
+        sprite_sheets[4].subsurface((0, 0, 32, 32)),  # 9 laser
+        sprite_sheets[5].subsurface((0, 0, 4, 32)),  # 10 laser-2
+        sprite_sheets[6].subsurface((0, 0, 11, 11)),  # 11 crosshair
+        sprite_sheets[7].subsurface((0, 0, 31, 31)),  # 12 crosshair-2
+        sprite_sheets[8].subsurface((0, 0, 16, 16)),  # 13 explosion frame 0
+        sprite_sheets[8].subsurface((16, 0, 16, 16)),  # 14 explosion frame 1
+        sprite_sheets[8].subsurface((0, 16, 16, 16)),  # 15 explosion frame 2
+        sprite_sheets[8].subsurface((16, 16, 16, 16)),  # 16 explosion frame 3
+        sprite_sheets[8].subsurface((0, 32, 16, 16)),  # 17 explosion frame 4
+        sprite_sheets[8].subsurface((16, 32, 16, 16)),  # 18 explosion frame 5
     ]
     scaled_sprites = [pygame.transform.scale2x(s) for s in cropped_sprites]
+    scaled_sprites[13:19] = [pygame.transform.scale2x(s) for s in scaled_sprites[13:19]]
     # scaled_sprites = [pygame.transform.scale(s, (s.get_width() * 1.5, s.get_height() * 1.5)) for s in cropped_sprites]
     # scaled_sprites = cropped_sprites[:]
     return (cropped_sprites, scaled_sprites)
@@ -42,13 +51,17 @@ class ShooterGame:
         self.player_group = pygame.sprite.GroupSingle()
         self.player = Player(self.scaled_sprites, self.player_group)
         self.crosshair_group = pygame.sprite.GroupSingle()
-        self.crosshair = Crosshair([self.scaled_sprites[11]], self.crosshair_group)
+        self.crosshair = Crosshair([self.scaled_sprites[12]], self.crosshair_group)
         self.bullet_group = pygame.sprite.RenderPlain()
-        self.bullet_factory = BulletFactory([self.scaled_sprites[9]])
+        self.bullet_factory = BulletFactory([self.scaled_sprites[10]])
         self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
         self.enemy_group = pygame.sprite.RenderPlain()
         self.enemy_factory_group = pygame.sprite.Group()
         enemy.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
+
+    def create_explosion(self) -> Animation:
+        explosion = Animation(self.scaled_sprites[13:19], 0.01, False)
+        return explosion
 
     def process_frame(self, dt: float):
         self.dt = dt
@@ -86,4 +99,9 @@ class ShooterGame:
         self.bullet_group.draw(self.screen)
         self.enemy_group.draw(self.screen)
 
-        pygame.sprite.groupcollide(self.bullet_group, self.enemy_group, True, True)
+        collision_result = pygame.sprite.groupcollide(
+            self.bullet_group, self.enemy_group, True, False
+        )
+        for kills in collision_result.values():
+            for enemy_killed in kills:
+                enemy_killed.set_animation(self.create_explosion(), True)

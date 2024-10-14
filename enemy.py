@@ -6,6 +6,8 @@ from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
+from animation import Animation
+
 if TYPE_CHECKING:
     from shooter_game import ShooterGame
 
@@ -93,22 +95,43 @@ class SplineEnemy(Sprite):
         self.rect.top = -self.rect.height
         self.pos = None
         self.current_point = 0
-        self.trajectory = SplineEnemy.trajectories[
-            trajectory_number % len(SplineEnemy.trajectories)
-        ]
-        self.pos = Vector2(self.trajectory[0][0], self.trajectory[0][1])
+        if trajectory_number >= 0:
+            self.trajectory = SplineEnemy.trajectories[
+                trajectory_number % len(SplineEnemy.trajectories)
+            ]
+            self.pos = Vector2(self.trajectory[0][0], self.trajectory[0][1])
+        else:
+            # Negative trajectory number means the enemy is static
+            self.trajectory = None
+            self.pos = Vector2(50, 50)
+        self.animation = None
+        self.dokill = False
+
+    def set_animation(self, animation: Animation, dokill: bool) -> None:
+        self.animation = animation
+        self.dokill = dokill
 
     def update(self, game: "ShooterGame") -> None:
-        # for i in range(len(self.trajectory)):
-        #     pygame.draw.circle(game.screen, "red", self.trajectory[i], 1)
-        if self.current_point < len(self.trajectory):
-            self.pos = Vector2(
-                self.trajectory[self.current_point][0],
-                self.trajectory[self.current_point][1],
-            )
-            self.current_point += int(600 * game.dt)
-        else:
-            self.kill()
+        # Update animation
+        if self.animation:
+            self.animation.update(game.dt)
+            self.image = self.animation.get_current_frame()
+            if self.animation.is_done() and self.dokill:
+                self.kill()
+                return
+
+        # Update trajectory (if any)
+        if self.trajectory:
+            # for i in range(len(self.trajectory)):
+            #     pygame.draw.circle(game.screen, "red", self.trajectory[i], 1)
+            if self.current_point < len(self.trajectory):
+                self.pos = Vector2(
+                    self.trajectory[self.current_point][0],
+                    self.trajectory[self.current_point][1],
+                )
+                self.current_point += int(600 * game.dt)
+            else:
+                self.kill()
         self.rect.center = self.pos
 
 

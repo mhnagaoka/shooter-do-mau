@@ -71,8 +71,9 @@ def render_all(
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.Surface((288, 288))
-    display = pygame.display.set_mode((screen.get_width() * 4, screen.get_height() * 4))
+    display = pygame.display.set_mode((screen.get_width() * 2, screen.get_height() * 2))
     pygame.display.set_caption("Surface Factory")
+    pygame.mouse.set_visible(False)
     font = pygame.font.Font(pygame.font.get_default_font(), 12)
     clock = pygame.time.Clock()
     running = True
@@ -97,8 +98,12 @@ if __name__ == "__main__":
         screen.fill((0, 0, 0))
 
         render_all(factory, animation, screen)
+
+        # Update animations
         for anim in animation.values():
             anim.update(dt)
+
+        # Rotation Test
         enemy = pygame.transform.rotate(factory.surfaces["red-enemy"][0], angle)
         enemy_rect = enemy.get_rect()
         enemy_rect.center = (240, 240)
@@ -113,6 +118,14 @@ if __name__ == "__main__":
             angle += 180 * dt
         if keys[pygame.K_RIGHT]:
             angle -= 180 * dt
+
+        # Reticle
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_pos = (mouse_pos[0] // 2, mouse_pos[1] // 2)
+        reticle_surface = factory.surfaces["shots"][0]
+        reticle_rect = reticle_surface.get_rect()
+        reticle_rect.center = mouse_pos
+        screen.blit(reticle_surface, reticle_rect)
 
         # flip() the display to put your work on screen
         display.blit(pygame.transform.scale(screen, display.get_size()), (0, 0))

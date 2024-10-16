@@ -9,7 +9,7 @@ class Animation:
         self.current_delay = 0
         self.loop = loop
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         self.current_delay += dt
         if self.current_delay >= self.delay:
             self.current_delay = 0
@@ -18,12 +18,12 @@ class Animation:
             else:
                 self.current_frame = min(self.current_frame + 1, len(self.frames) - 1)
 
-    def get_current_frame(self):
+    def get_current_frame(self) -> Surface:
         return self.frames[self.current_frame]
 
-    def is_done(self):
-        return not self.loop and self.current_frame == len(self.frames) - 1
+    def is_done(self) -> bool:
+        return not self.loop and self.current_frame >= len(self.frames) - 1
 
-    def reset(self):
+    def reset(self) -> None:
         self.current_frame = 0
         self.current_delay = 0

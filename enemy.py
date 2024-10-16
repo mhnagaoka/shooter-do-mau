@@ -55,9 +55,7 @@ def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
     curve = BSpline.Curve()
     curve.degree = 2
     curve.ctrlpts = ctrlpoints
-    curve.knotvector = utilities.generate_knot_vector(
-        curve.degree, len(curve.ctrlpts)
-    )
+    curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
     return _interpolation_points(curve.evalpts)
 
 
@@ -86,54 +84,37 @@ def _init_spline_trajectories():
     return [trajectory(ctrlpoints) for ctrlpoints in curve_ctrlpts_options]
 
 
-class SplineEnemy(Sprite):
-    trajectories = _init_spline_trajectories()
-
-    def __init__(self, images: list[Surface], trajectory_number: int, *groups) -> None:
+class AnimatedSprite(Sprite):
+    def __init__(self, animation: Animation, *groups) -> None:
         super().__init__(*groups)
-        self.image = images[0]
-        self.rect = self.image.get_rect()
-        self.rect.top = -self.rect.height
-        self.pos = None
-        self.current_point = 0
-        if trajectory_number >= 0:
-            self.trajectory = SplineEnemy.trajectories[
-                trajectory_number % len(SplineEnemy.trajectories)
-            ]
-            self.pos = Vector2(self.trajectory[0][0], self.trajectory[0][1])
-        else:
-            # Negative trajectory number means the enemy is static
-            self.trajectory = None
-            self.pos = Vector2(50, 50)
-        self.animation = None
-        self.dokill = False
-
-    def set_animation(self, animation: Animation, dokill: bool) -> None:
         self.animation = animation
-        self.dokill = dokill
+        self.image = self.animation.get_current_frame()
+        self.rect = self.image.get_rect()
+        self.rect.top = 0
+        self.rect.left = 0
+        self.angle = 0.0
 
-    def update(self, game: "ShooterGame") -> None:
-        # Update animation
-        if self.animation:
-            self.animation.update(game.dt)
-            self.image = self.animation.get_current_frame()
-            if self.animation.is_done() and self.dokill:
-                self.kill()
-                return
 
-        # Update trajectory (if any)
-        if self.trajectory:
-            # for i in range(len(self.trajectory)):
-            #     pygame.draw.circle(game.screen, "red", self.trajectory[i], 1)
-            if self.current_point < len(self.trajectory):
-                self.pos = Vector2(
-                    self.trajectory[self.current_point][0],
-                    self.trajectory[self.current_point][1],
-                )
-                self.current_point += int(600 * game.dt)
-            else:
-                self.kill()
-        self.rect.center = self.pos
+    def set_animation(self, animation: Animation, reset_angle=False) -> None:
+        self.animation = animation
+        if reset_angle:
+            self.angle = 0.0
+        self.image = self.animation.get_current_frame()
+        if self.angle != 0:
+            self.image = pygame.transform.rotate(self.image, self.angle)
+        self.rect = self.image.get_rect()
+        new_rect = self.image.get_rect()
+        new_rect.center = self.rect.center
+        self.rect = new_rect
+
+    def update(self, dt: float) -> None:
+        self.animation.update(dt)
+        self.image = self.animation.get_current_frame()
+        if self.angle != 0:
+            self.image = pygame.transform.rotate(self.image, self.angle)
+        new_rect = self.image.get_rect()
+        new_rect.center = self.rect.center
+        self.rect = new_rect
 
 
 class SquadronEnemyFactory(Sprite):

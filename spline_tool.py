@@ -3,6 +3,7 @@ from enum import IntEnum
 import pygame
 
 import enemy
+from animation import Animation
 from surface_factory import SurfaceFactory
 
 
@@ -30,7 +31,9 @@ if __name__ == "__main__":
     ctrl_rects: list[pygame.Rect] = list()
 
     factory = SurfaceFactory(["assets"])
-    ship = factory.surfaces["red-enemy"][0]
+    ship = enemy.AnimatedSprite(Animation(factory.surfaces["red-enemy"], 0.1, loop=True))
+    ship_group = pygame.sprite.GroupSingle()
+    ship_group.add(ship)
     prev_trajectory_idx = 0
     trajectory_idx = 0
     trajectory = None
@@ -138,14 +141,11 @@ if __name__ == "__main__":
                 curr_vec = pygame.Vector2(trajectory[trajectory_idx])
                 prev_vec = pygame.Vector2(trajectory[prev_trajectory_idx])
                 ship_vec = curr_vec - prev_vec
-            angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
-            rotated = pygame.transform.rotate(ship, angle)
-            ship_rect = rotated.get_rect()
-            ship_rect.center = trajectory[prev_trajectory_idx]
-            # rotated = pygame.transform.rotate(ship, 90)
-
-            screen.blit(rotated, ship_rect)
-            if trajectory_idx > len(trajectory) - 1:
+                ship.angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
+                ship.rect.center = trajectory[trajectory_idx]
+                ship_group.update(dt)
+                ship_group.draw(screen)
+            else:
                 trajectory = None
                 trajectory_idx = 0
 

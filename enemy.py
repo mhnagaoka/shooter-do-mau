@@ -51,6 +51,16 @@ def _interpolation_points(points: list[(float, float)]) -> list[(float, float)]:
     return result
 
 
+def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    curve = BSpline.Curve()
+    curve.degree = 2
+    curve.ctrlpts = ctrlpoints
+    curve.knotvector = utilities.generate_knot_vector(
+        curve.degree, len(curve.ctrlpts)
+    )
+    return _interpolation_points(curve.evalpts)
+
+
 def _init_spline_trajectories():
     curve_ctrlpts_options = [
         [(2, 82), (1050, 268), (949, 883), (137, 882), (83, 252), (1075, 93)],
@@ -72,15 +82,6 @@ def _init_spline_trajectories():
         [(228, 0), (371, 127), (140, 500), (371, 764), (195, 1078)],
         [(150, 12), (145, 1059), (997, 1054), (952, 8)],
     ]
-
-    def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
-        curve = BSpline.Curve()
-        curve.degree = 2
-        curve.ctrlpts = ctrlpoints
-        curve.knotvector = utilities.generate_knot_vector(
-            curve.degree, len(curve.ctrlpts)
-        )
-        return _interpolation_points(curve.evalpts)
 
     return [trajectory(ctrlpoints) for ctrlpoints in curve_ctrlpts_options]
 

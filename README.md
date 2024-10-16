@@ -42,6 +42,14 @@ Run the code.
 python main.py
 ```
 
+### Sprite showcase
+
+To see the rendered sprites and resulting animations, run the tool below.
+
+```sh
+python showcase.py
+```
+
 ### Spline tool
 
 There is a spline drawing tool that I (shamelessly) copied from

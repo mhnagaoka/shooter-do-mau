@@ -66,4 +66,5 @@ How to use it:
 - D: when hovering a control point, deletes it
 - mouse drag: drags a control point
 - I: creates an aditional control point between the hovered one and the next
+- H: show / hide spline drawing guides
 - Enter: draws a ship following a trajectory and prints the control points on the console

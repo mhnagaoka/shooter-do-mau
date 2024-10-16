@@ -1,8 +1,19 @@
-import pygame
-import enemy
+from enum import IntEnum
 
+import pygame
+
+import enemy
 from surface_factory import SurfaceFactory
 
+
+class ToolMode(IntEnum):
+    HIDE_ALL = 0
+    SHOW_POINTS = 1
+    SHOW_LINES = 2
+    SHOW_SPLINE = 3
+
+
+tool_mode = ToolMode.SHOW_SPLINE
 
 if __name__ == "__main__":
     pygame.init()
@@ -41,12 +52,14 @@ if __name__ == "__main__":
             dragging = None
         if dragging:
             dragging.center = mouse_pos
+            tool_mode = ToolMode.SHOW_SPLINE
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and (prev_keys is None or not prev_keys[pygame.K_a]):
             rect = pygame.Rect(0, 0, 5, 5)
             rect.center = mouse_pos
             ctrl_rects.append(rect)
+            tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_i] and (prev_keys is None or not prev_keys[pygame.K_i]):
             for i, rect in enumerate(ctrl_rects):
                 if i < len(ctrl_rects) - 1 and rect.collidepoint(
@@ -61,11 +74,15 @@ if __name__ == "__main__":
                     new_rect.center = new_pos
                     ctrl_rects.insert(i + 1, new_rect)
                     break
+            tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_d] and (prev_keys is None or not prev_keys[pygame.K_d]):
             for i, rect in enumerate(ctrl_rects):
-                if rect.collidepoint(mouse_pos[0], mouse_pos[1]):
+                if rect.collidepoint(mouse_pos):
                     ctrl_rects.pop(i)
                     break
+            tool_mode = ToolMode.SHOW_SPLINE
+        if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
+            tool_mode = (tool_mode + 1) % len(ToolMode)
         if keys[pygame.K_RETURN] and (
             prev_keys is None or not prev_keys[pygame.K_RETURN]
         ):
@@ -80,26 +97,38 @@ if __name__ == "__main__":
         # fill the screen with a color to wipe away anything from last frame
         screen.fill((0, 0, 0))
 
-        prev_rect = None
-        for rect in ctrl_rects:
-            if prev_rect:
-                pygame.draw.line(screen, "gray36", prev_rect.center, rect.center)
-            prev_rect = rect
-        for rect in ctrl_rects:
-            if rect.collidepoint(mouse_pos[0], mouse_pos[1]):
-                color = "red"
-            else:
-                color = "white"
-            pygame.draw.rect(screen, color, rect, 1)
-        if len(ctrl_rects) > 2:
-            ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-            prev = None
-            for curr in enemy.trajectory(ctrlpoints):
-                if prev is None:
+        if tool_mode >= ToolMode.SHOW_LINES:
+            prev_rect = None
+            for rect in ctrl_rects:
+                if prev_rect:
+                    pygame.draw.line(screen, "gray36", prev_rect.center, rect.center)
+                prev_rect = rect
+        if tool_mode >= ToolMode.SHOW_SPLINE:
+            if len(ctrl_rects) > 2:
+                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
+                prev = None
+                for curr in enemy.trajectory(ctrlpoints):
+                    if prev is None:
+                        prev = curr
+                        continue
+                    pygame.draw.line(screen, "green", prev, curr)
                     prev = curr
-                    continue
-                pygame.draw.line(screen, "green", prev, curr)
-                prev = curr
+        if tool_mode >= ToolMode.SHOW_POINTS:
+            for i, rect in enumerate(ctrl_rects):
+                if rect.collidepoint(mouse_pos):
+                    color = "yellow"
+                    if rect.height <= 5:
+                        rect.inflate_ip(2, 2)
+                else:
+                    if i == 0:
+                        color = "green"
+                    elif i == len(ctrl_rects) - 1:
+                        color = "red"
+                    else:
+                        color = "white"
+                    if rect.height > 5:
+                        rect.inflate_ip(-2, -2)
+                pygame.draw.rect(screen, color, rect, 1)
 
         if trajectory:
             prev_trajectory_idx = trajectory_idx
@@ -109,7 +138,8 @@ if __name__ == "__main__":
                 curr_vec = pygame.Vector2(trajectory[trajectory_idx])
                 prev_vec = pygame.Vector2(trajectory[prev_trajectory_idx])
                 ship_vec = curr_vec - prev_vec
-            rotated = pygame.transform.rotate(ship, -ship_vec.as_polar()[1] + 90)
+            angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
+            rotated = pygame.transform.rotate(ship, angle)
             ship_rect = rotated.get_rect()
             ship_rect.center = trajectory[prev_trajectory_idx]
             # rotated = pygame.transform.rotate(ship, 90)

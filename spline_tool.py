@@ -27,14 +27,14 @@ if __name__ == "__main__":
     running = True
     mouse_pos = (0, 0)
     prev_keys = None
-    dragging = None
+    dragging_rect = None
     ctrl_rects: list[pygame.Rect] = list()
+    trajectory = None
+    prev_trajectory_idx = 0
+    trajectory_idx = 0
 
     factory = SurfaceFactory(["assets"])
     group = pygame.sprite.RenderPlain()
-    prev_trajectory_idx = 0
-    trajectory_idx = 0
-    trajectory = None
 
     while running:
         # pygame.QUIT event means the user clicked X to close your window
@@ -48,19 +48,27 @@ if __name__ == "__main__":
         if pygame.mouse.get_pressed()[0]:
             for rect in ctrl_rects:
                 if rect.collidepoint(mouse_pos[0], mouse_pos[1]):
-                    dragging = rect
+                    dragging_rect = rect
         else:
-            dragging = None
-        if dragging:
-            dragging.center = mouse_pos
-            tool_mode = ToolMode.SHOW_SPLINE
+            dragging_rect = None
+        if dragging_rect:
+            dragging_rect.center = mouse_pos
+            tool_mode = ToolMode.SHOW_LINES
+            if len(ctrl_rects) > 2:
+                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
+                trajectory = enemy.Trajectory(ctrlpoints)
+                tool_mode = ToolMode.SHOW_SPLINE
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and (prev_keys is None or not prev_keys[pygame.K_a]):
             rect = pygame.Rect(0, 0, 5, 5)
             rect.center = mouse_pos
             ctrl_rects.append(rect)
-            tool_mode = ToolMode.SHOW_SPLINE
+            tool_mode = ToolMode.SHOW_LINES
+            if len(ctrl_rects) > 2:
+                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
+                trajectory = enemy.Trajectory(ctrlpoints)
+                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_i] and (prev_keys is None or not prev_keys[pygame.K_i]):
             for i, rect in enumerate(ctrl_rects):
                 if i < len(ctrl_rects) - 1 and rect.collidepoint(
@@ -75,21 +83,27 @@ if __name__ == "__main__":
                     new_rect.center = new_pos
                     ctrl_rects.insert(i + 1, new_rect)
                     break
-            tool_mode = ToolMode.SHOW_SPLINE
+            tool_mode = ToolMode.SHOW_LINES
+            if len(ctrl_rects) > 2:
+                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
+                trajectory = enemy.Trajectory(ctrlpoints)
+                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_d] and (prev_keys is None or not prev_keys[pygame.K_d]):
             for i, rect in enumerate(ctrl_rects):
                 if rect.collidepoint(mouse_pos):
                     ctrl_rects.pop(i)
                     break
-            tool_mode = ToolMode.SHOW_SPLINE
+            tool_mode = ToolMode.SHOW_LINES
+            if len(ctrl_rects) > 2:
+                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
+                trajectory = enemy.Trajectory(ctrlpoints)
+                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
             tool_mode = (tool_mode + 1) % len(ToolMode)
         if keys[pygame.K_RETURN] and (
             prev_keys is None or not prev_keys[pygame.K_RETURN]
         ):
             if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.trajectory(ctrlpoints)
                 trajectory_idx = 0
                 s = enemy.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
@@ -100,7 +114,7 @@ if __name__ == "__main__":
                         lambda sprite: sprite.kill()
                     ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
                 )
-                print(ctrlpoints, len(trajectory))
+                print(ctrlpoints, len(trajectory.points))
 
         prev_keys = keys
 
@@ -117,7 +131,8 @@ if __name__ == "__main__":
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
                 prev = None
-                for curr in enemy.trajectory(ctrlpoints):
+                trajectory_points, _ = enemy.trajectory(ctrlpoints)
+                for curr in trajectory_points:
                     if prev is None:
                         prev = curr
                         continue

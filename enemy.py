@@ -12,8 +12,11 @@ if TYPE_CHECKING:
     from shooter_game import ShooterGame
 
 
-def _interpolation_points(points: list[(float, float)]) -> list[(int, int)]:
-    result = []
+def _interpolation_points(
+    points: list[tuple[float, float]],
+) -> tuple[list[tuple[int, int]], list[float]]:
+    result_points: list[int, int] = []
+    result_speeds: list[float] = []
     prev_point = None
     for point in points:
         if prev_point is None:
@@ -21,58 +24,94 @@ def _interpolation_points(points: list[(float, float)]) -> list[(int, int)]:
             continue
         dx = point[0] - prev_point[0]
         dy = point[1] - prev_point[1]
+        angle = Vector2(dx, dy).as_polar()[1]
         if abs(dx) > abs(dy):
             if point[0] >= prev_point[0] and point[1] >= prev_point[1]:
                 for x in range(int(dx)):
-                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
+                    result_points.append(
+                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
+                    )
+                    result_speeds.append(angle)
             elif point[0] >= prev_point[0] and point[1] < prev_point[1]:
                 for x in range(int(dx)):
-                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
+                    result_points.append(
+                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
+                    )
+                    result_speeds.append(angle)
             elif point[0] < prev_point[0] and point[1] >= prev_point[1]:
                 for x in range(0, int(dx), -1):
-                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
+                    result_points.append(
+                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
+                    )
+                    result_speeds.append(angle)
             else:
                 for x in range(0, int(dx), -1):
-                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
+                    result_points.append(
+                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
+                    )
+                    result_speeds.append(angle)
         else:
             if point[1] >= prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(int(dy)):
-                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
+                    result_points.append(
+                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
+                    )
+                    result_speeds.append(angle)
             elif point[1] >= prev_point[1] and point[0] < prev_point[0]:
                 for y in range(int(dy)):
-                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
+                    result_points.append(
+                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
+                    )
+                    result_speeds.append(angle)
             elif point[1] < prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(0, int(dy), -1):
-                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
+                    result_points.append(
+                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
+                    )
+                    result_speeds.append(angle)
             else:
                 for y in range(0, int(dy), -1):
-                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
+                    result_points.append(
+                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
+                    )
+                    result_speeds.append(angle)
         prev_point = point
-    return result
+    return result_points, result_speeds
 
 
-def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
+def trajectory(
+    ctrlpoints: list[tuple[int, int]],
+) -> tuple[list[tuple[int, int]], list[float]]:
     curve = BSpline.Curve()
     curve.degree = 2
     curve.ctrlpts = ctrlpoints
-    curve.delta = max(1 / len(ctrlpoints) / 4, 0.01) # heuristically chosen
+    curve.delta = max(1 / len(ctrlpoints) / 4, 0.01)  # heuristically chosen
     curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
-    result = _interpolation_points(curve.evalpts)
-    if result[-1] != ctrlpoints[-1]:
-        result.append(ctrlpoints[-1]) # (hacky) add the last point if it's not already there
-    return result
+    result_points, result_angles = _interpolation_points(curve.evalpts)
+    if result_points[-1] != ctrlpoints[-1]:
+        result_points.append(
+            ctrlpoints[-1]
+        )  # (hacky) add the last point if it's not already there
+        result_angles.append(result_angles[-1])
+    return result_points, result_angles
 
 
-class Trajectory():
+class Trajectory:
     def __init__(self, ctrlpoints: list[tuple[int, int]]) -> None:
         self.ctrlpoints = ctrlpoints
-        self.curve = BSpline.Curve()
-        self.curve.degree = 2
-        self.curve.ctrlpts = ctrlpoints
-        self.curve.knotvector = utilities.generate_knot_vector(
-            self.curve.degree, len(self.curve.ctrlpts)
+        self._curve = BSpline.Curve()
+        self._curve.degree = 2
+        self._curve.ctrlpts = ctrlpoints
+        self._curve.delta = max(1 / len(ctrlpoints) / 4, 0.01)  # heuristically chosen
+        self._curve.knotvector = utilities.generate_knot_vector(
+            self._curve.degree, len(self._curve.ctrlpts)
         )
-        self.trajectory = _interpolation_points(self.curve.evalpts)
+        self.points, self.angles = _interpolation_points(self._curve.evalpts)
+        # (hacky) make sure the last control point is included
+        if self.points[-1] != ctrlpoints[-1]:
+            self.points.append(ctrlpoints[-1])
+            self.angles.append(self.angles[-1])
+        assert len(self.points) == len(self.angles)
 
 
 def _init_spline_trajectories():
@@ -141,13 +180,11 @@ class AnimatedSprite(Sprite):
 
 
 class TrajectorySprite(AnimatedSprite):
-    def __init__(
-        self, animation: Animation, trajectory: list[tuple[int, int]], *groups
-    ) -> None:
+    def __init__(self, animation: Animation, trajectory: Trajectory, *groups) -> None:
         super().__init__(animation, *groups)
         self.trajectory = trajectory
         self.trajectory_idx = 0
-        self.rect.center = self.trajectory[self.trajectory_idx]
+        self.rect.center = self.trajectory.points[self.trajectory_idx]
         self.trajectory_end_handler = None
 
     def on_trajectory_end(self, handler) -> "TrajectorySprite":
@@ -155,14 +192,19 @@ class TrajectorySprite(AnimatedSprite):
         return self
 
     def update(self, dt: float) -> None:
-        super().update(dt)
         prev_idx = self.trajectory_idx
         self.trajectory_idx += int((150 * dt))
-        if self.trajectory_idx < len(self.trajectory):
-            self.rect.center = self.trajectory[self.trajectory_idx]
-        elif self.trajectory_idx >= len(self.trajectory):
-            self.rect.center = self.trajectory[-1]
-            if prev_idx < len(self.trajectory) and self.trajectory_end_handler:
+        if self.trajectory_idx < len(self.trajectory.points):
+            self.angle = (
+                round((-self.trajectory.angles[self.trajectory_idx] + 90) / 18) * 18
+            )
+            super().update(dt)
+            self.rect.center = self.trajectory.points[self.trajectory_idx]
+        else:
+            self.angle = round((-self.trajectory.angles[-1] + 90) / 18) * 18
+            super().update(dt)
+            self.rect.center = self.trajectory.points[-1]
+            if prev_idx < len(self.trajectory.points) and self.trajectory_end_handler:
                 self.trajectory_end_handler(self)
 
 

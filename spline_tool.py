@@ -31,9 +31,7 @@ if __name__ == "__main__":
     ctrl_rects: list[pygame.Rect] = list()
 
     factory = SurfaceFactory(["assets"])
-    ship = enemy.AnimatedSprite(Animation(factory.surfaces["red-enemy"], 0.1, loop=True))
-    ship_group = pygame.sprite.GroupSingle()
-    ship_group.add(ship)
+    group = pygame.sprite.RenderPlain()
     prev_trajectory_idx = 0
     trajectory_idx = 0
     trajectory = None
@@ -93,6 +91,15 @@ if __name__ == "__main__":
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
                 trajectory = enemy.trajectory(ctrlpoints)
                 trajectory_idx = 0
+                s = enemy.TrajectorySprite(
+                    Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
+                    trajectory,
+                    group,
+                ).on_trajectory_end(
+                    lambda sprite: sprite.on_animation_end(
+                        lambda sprite: sprite.kill()
+                    ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
+                )
                 print(ctrlpoints)
 
         prev_keys = keys
@@ -133,21 +140,24 @@ if __name__ == "__main__":
                         rect.inflate_ip(-2, -2)
                 pygame.draw.rect(screen, color, rect, 1)
 
-        if trajectory:
-            prev_trajectory_idx = trajectory_idx
-            trajectory_idx += int(150 * dt)
+        # if trajectory:
+        #     prev_trajectory_idx = trajectory_idx
+        #     trajectory_idx += int(150 * dt)
 
-            if trajectory_idx < len(trajectory):
-                curr_vec = pygame.Vector2(trajectory[trajectory_idx])
-                prev_vec = pygame.Vector2(trajectory[prev_trajectory_idx])
-                ship_vec = curr_vec - prev_vec
-                ship.angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
-                ship.rect.center = trajectory[trajectory_idx]
-                ship_group.update(dt)
-                ship_group.draw(screen)
-            else:
-                trajectory = None
-                trajectory_idx = 0
+        #     if trajectory_idx < len(trajectory):
+        #         curr_vec = pygame.Vector2(trajectory[trajectory_idx])
+        #         prev_vec = pygame.Vector2(trajectory[prev_trajectory_idx])
+        #         ship_vec = curr_vec - prev_vec
+        #         # ship.angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
+        #         # ship.rect.center = trajectory[trajectory_idx]
+        #         group.update(dt)
+        #         group.draw(screen)
+        #     else:
+        #         trajectory = None
+        #         trajectory_idx = 0
+
+        group.update(dt)
+        group.draw(screen)
 
         display.blit(pygame.transform.scale(screen, display.get_size()), (0, 0))
         pygame.display.flip()

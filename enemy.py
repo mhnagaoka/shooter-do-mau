@@ -93,7 +93,7 @@ class AnimatedSprite(Sprite):
         self.rect.top = 0
         self.rect.left = 0
         self.angle = 0.0
-
+        self.animation_end_handler = None
 
     def set_animation(self, animation: Animation, reset_angle=False) -> None:
         self.animation = animation
@@ -102,12 +102,19 @@ class AnimatedSprite(Sprite):
         self.image = self.animation.get_current_frame()
         if self.angle != 0:
             self.image = pygame.transform.rotate(self.image, self.angle)
-        self.rect = self.image.get_rect()
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect
 
+    def on_animation_end(self, handler) -> "AnimatedSprite":
+        self.animation_end_handler = handler
+        return self
+
     def update(self, dt: float) -> None:
+        if self.animation.is_finished():
+            if self.animation_end_handler:
+                self.animation_end_handler(self)
+            return
         self.animation.update(dt)
         self.image = self.animation.get_current_frame()
         if self.angle != 0:
@@ -115,6 +122,32 @@ class AnimatedSprite(Sprite):
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect
+
+
+class TrajectorySprite(AnimatedSprite):
+    def __init__(
+        self, animation: Animation, trajectory: list[tuple[int, int]], *groups
+    ) -> None:
+        super().__init__(animation, *groups)
+        self.trajectory = trajectory
+        self.trajectory_idx = 0
+        self.rect.center = self.trajectory[self.trajectory_idx]
+        self.trajectory_end_handler = None
+
+    def on_trajectory_end(self, handler) -> "TrajectorySprite":
+        self.trajectory_end_handler = handler
+        return self
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        prev_idx = self.trajectory_idx
+        self.trajectory_idx += int((150 * dt))
+        if self.trajectory_idx < len(self.trajectory):
+            self.rect.center = self.trajectory[self.trajectory_idx]
+        elif self.trajectory_idx >= len(self.trajectory):
+            self.rect.center = self.trajectory[-1]
+            if prev_idx < len(self.trajectory) and self.trajectory_end_handler:
+                self.trajectory_end_handler(self)
 
 
 class SquadronEnemyFactory(Sprite):

@@ -16,13 +16,13 @@ class Animation:
             if self.loop:
                 self.current_frame = (self.current_frame + 1) % len(self.frames)
             else:
-                self.current_frame = min(self.current_frame + 1, len(self.frames) - 1)
+                self.current_frame += 1
 
     def get_current_frame(self) -> Surface:
-        return self.frames[self.current_frame]
+        return self.frames[min(self.current_frame, len(self.frames) - 1)]
 
-    def is_done(self) -> bool:
-        return not self.loop and self.current_frame >= len(self.frames) - 1
+    def is_finished(self) -> bool:
+        return not self.loop and self.current_frame >= len(self.frames)
 
     def reset(self) -> None:
         self.current_frame = 0

@@ -100,7 +100,7 @@ if __name__ == "__main__":
                         lambda sprite: sprite.kill()
                     ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
                 )
-                print(ctrlpoints)
+                print(ctrlpoints, len(trajectory))
 
         prev_keys = keys
 

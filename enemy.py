@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from shooter_game import ShooterGame
 
 
-def _interpolation_points(points: list[(float, float)]) -> list[(float, float)]:
+def _interpolation_points(points: list[(float, float)]) -> list[(int, int)]:
     result = []
     prev_point = None
     for point in points:
@@ -24,29 +24,29 @@ def _interpolation_points(points: list[(float, float)]) -> list[(float, float)]:
         if abs(dx) > abs(dy):
             if point[0] >= prev_point[0] and point[1] >= prev_point[1]:
                 for x in range(int(dx)):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
+                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
             elif point[0] >= prev_point[0] and point[1] < prev_point[1]:
                 for x in range(int(dx)):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
+                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
             elif point[0] < prev_point[0] and point[1] >= prev_point[1]:
                 for x in range(0, int(dx), -1):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
+                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
             else:
                 for x in range(0, int(dx), -1):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
+                    result.append((int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x)))
         else:
             if point[1] >= prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(int(dy)):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
+                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
             elif point[1] >= prev_point[1] and point[0] < prev_point[0]:
                 for y in range(int(dy)):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
+                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
             elif point[1] < prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(0, int(dy), -1):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
+                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
             else:
                 for y in range(0, int(dy), -1):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
+                    result.append((int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y)))
         prev_point = point
     return result
 
@@ -55,8 +55,24 @@ def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
     curve = BSpline.Curve()
     curve.degree = 2
     curve.ctrlpts = ctrlpoints
+    curve.delta = max(1 / len(ctrlpoints) / 4, 0.01) # heuristically chosen
     curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
-    return _interpolation_points(curve.evalpts)
+    result = _interpolation_points(curve.evalpts)
+    if result[-1] != ctrlpoints[-1]:
+        result.append(ctrlpoints[-1]) # (hacky) add the last point if it's not already there
+    return result
+
+
+class Trajectory():
+    def __init__(self, ctrlpoints: list[tuple[int, int]]) -> None:
+        self.ctrlpoints = ctrlpoints
+        self.curve = BSpline.Curve()
+        self.curve.degree = 2
+        self.curve.ctrlpts = ctrlpoints
+        self.curve.knotvector = utilities.generate_knot_vector(
+            self.curve.degree, len(self.curve.ctrlpts)
+        )
+        self.trajectory = _interpolation_points(self.curve.evalpts)
 
 
 def _init_spline_trajectories():

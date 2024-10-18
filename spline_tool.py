@@ -29,7 +29,7 @@ if __name__ == "__main__":
     prev_keys = None
     dragging_rect = None
     ctrl_rects: list[pygame.Rect] = list()
-    trajectory = None
+    trajectory_provider = None
     prev_trajectory_idx = 0
     trajectory_idx = 0
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.Trajectory(ctrlpoints)
+                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
                 tool_mode = ToolMode.SHOW_SPLINE
 
         keys = pygame.key.get_pressed()
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.Trajectory(ctrlpoints)
+                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_i] and (prev_keys is None or not prev_keys[pygame.K_i]):
             for i, rect in enumerate(ctrl_rects):
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.Trajectory(ctrlpoints)
+                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_d] and (prev_keys is None or not prev_keys[pygame.K_d]):
             for i, rect in enumerate(ctrl_rects):
@@ -96,7 +96,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.Trajectory(ctrlpoints)
+                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
             tool_mode = (tool_mode + 1) % len(ToolMode)
@@ -107,14 +107,14 @@ if __name__ == "__main__":
                 trajectory_idx = 0
                 s = enemy.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
-                    trajectory,
+                    enemy.SplineTrajectoryProvider(ctrlpoints, 150.0),
                     group,
                 ).on_trajectory_end(
                     lambda sprite: sprite.on_animation_end(
                         lambda sprite: sprite.kill()
                     ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
                 )
-                print(ctrlpoints, len(trajectory.points))
+                print(ctrlpoints, len(trajectory_provider))
 
         prev_keys = keys
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
                 prev = None
-                trajectory_points, _ = enemy.trajectory(ctrlpoints)
+                trajectory_points, _ = trajectory_provider.trajectory
                 for curr in trajectory_points:
                     if prev is None:
                         prev = curr
@@ -154,22 +154,6 @@ if __name__ == "__main__":
                     if rect.height > 5:
                         rect.inflate_ip(-2, -2)
                 pygame.draw.rect(screen, color, rect, 1)
-
-        # if trajectory:
-        #     prev_trajectory_idx = trajectory_idx
-        #     trajectory_idx += int(150 * dt)
-
-        #     if trajectory_idx < len(trajectory):
-        #         curr_vec = pygame.Vector2(trajectory[trajectory_idx])
-        #         prev_vec = pygame.Vector2(trajectory[prev_trajectory_idx])
-        #         ship_vec = curr_vec - prev_vec
-        #         # ship.angle = (-ship_vec.as_polar()[1] + 90) // 9 * 9
-        #         # ship.rect.center = trajectory[trajectory_idx]
-        #         group.update(dt)
-        #         group.draw(screen)
-        #     else:
-        #         trajectory = None
-        #         trajectory_idx = 0
 
         group.update(dt)
         group.draw(screen)

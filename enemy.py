@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from shooter_game import ShooterGame
 
 
-def _interpolation_points(
+def _interpolate_points(
     points: list[tuple[float, float]],
 ) -> tuple[list[tuple[int, int]], list[float]]:
     result_points: list[int, int] = []
@@ -87,7 +87,7 @@ def trajectory(
     curve.ctrlpts = ctrlpoints
     curve.delta = max(1 / len(ctrlpoints) / 4, 0.01)  # heuristically chosen
     curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
-    result_points, result_angles = _interpolation_points(curve.evalpts)
+    result_points, result_angles = _interpolate_points(curve.evalpts)
     if result_points[-1] != ctrlpoints[-1]:
         result_points.append(
             ctrlpoints[-1]
@@ -96,9 +96,62 @@ def trajectory(
     return result_points, result_angles
 
 
-class Trajectory:
-    def __init__(self, ctrlpoints: list[tuple[int, int]]) -> None:
-        self.ctrlpoints = ctrlpoints
+class TrajectoryProvider:
+    def update(self, dt: float) -> None:
+        pass
+
+    def get_current_position(self) -> tuple[int, int]:
+        pass
+
+    def get_current_angle(self) -> float:
+        pass
+
+    def is_finished(self) -> bool:
+        pass
+
+
+class PredefinedTrajectoryProvider(TrajectoryProvider):
+    def __init__(
+        self,
+        trajectory: tuple[list[tuple[int, int]], list[float]],
+        initial_speed: float,
+    ) -> None:
+        assert len(trajectory[0]) == len(trajectory[1])
+        self.trajectory = trajectory
+        self.index = 0
+        self._speed = initial_speed
+
+    def __len__(self) -> int:
+        return len(self.trajectory[0])
+
+    @property
+    def speed(self) -> float:
+        return self._speed
+
+    @speed.setter
+    def speed(self, value: float) -> "PredefinedTrajectoryProvider":
+        self._speed = value
+        return self
+
+    def update(self, dt: float) -> None:
+        self.index += int((self._speed * dt))
+
+    def get_current_position(self) -> tuple[int, int]:
+        return self.trajectory[0][min(self.index, len(self.trajectory[0]) - 1)]
+
+    def get_current_angle(self) -> float:
+        return self.trajectory[1][min(self.index, len(self.trajectory[1]) - 1)]
+
+    def is_finished(self) -> bool:
+        return self.index >= len(self.trajectory[0])
+
+    def reset(self) -> None:
+        self.index = 0
+
+
+class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
+    def __init__(self, ctrlpoints: list[tuple[int, int]], initial_speed: float) -> None:
+        self._ctrlpoints = ctrlpoints
         self._curve = BSpline.Curve()
         self._curve.degree = 2
         self._curve.ctrlpts = ctrlpoints
@@ -106,37 +159,12 @@ class Trajectory:
         self._curve.knotvector = utilities.generate_knot_vector(
             self._curve.degree, len(self._curve.ctrlpts)
         )
-        self.points, self.angles = _interpolation_points(self._curve.evalpts)
+        points, angles = _interpolate_points(self._curve.evalpts)
         # (hacky) make sure the last control point is included
-        if self.points[-1] != ctrlpoints[-1]:
-            self.points.append(ctrlpoints[-1])
-            self.angles.append(self.angles[-1])
-        assert len(self.points) == len(self.angles)
-
-
-def _init_spline_trajectories():
-    curve_ctrlpts_options = [
-        [(2, 82), (1050, 268), (949, 883), (137, 882), (83, 252), (1075, 93)],
-        [(2, 82), (599, 325), (580, 876), (137, 882), (50, 421), (218, 3)],
-        [(1071, 4), (139, 288), (145, 768), (978, 654), (418, 4)],
-        [
-            (1071, 4),
-            (614, 484),
-            (643, 751),
-            (1014, 725),
-            (1008, 421),
-            (91, 401),
-            (67, 713),
-            (415, 762),
-            (494, 471),
-            (2, 6),
-        ],
-        [(779, 3), (559, 263), (908, 511), (543, 817), (804, 1080)],
-        [(228, 0), (371, 127), (140, 500), (371, 764), (195, 1078)],
-        [(150, 12), (145, 1059), (997, 1054), (952, 8)],
-    ]
-
-    return [trajectory(ctrlpoints) for ctrlpoints in curve_ctrlpts_options]
+        if points[-1] != ctrlpoints[-1]:
+            points.append(ctrlpoints[-1])
+            angles.append(angles[-1])
+        super().__init__((points, angles), initial_speed)
 
 
 class AnimatedSprite(Sprite):
@@ -180,11 +208,12 @@ class AnimatedSprite(Sprite):
 
 
 class TrajectorySprite(AnimatedSprite):
-    def __init__(self, animation: Animation, trajectory: Trajectory, *groups) -> None:
+    def __init__(
+        self, animation: Animation, trajectory_provider: TrajectoryProvider, *groups
+    ) -> None:
         super().__init__(animation, *groups)
-        self.trajectory = trajectory
-        self.trajectory_idx = 0
-        self.rect.center = self.trajectory.points[self.trajectory_idx]
+        self.trajectory_provider = trajectory_provider
+        self.rect.center = self.trajectory_provider.get_current_position()
         self.trajectory_end_handler = None
 
     def on_trajectory_end(self, handler) -> "TrajectorySprite":
@@ -192,20 +221,21 @@ class TrajectorySprite(AnimatedSprite):
         return self
 
     def update(self, dt: float) -> None:
-        prev_idx = self.trajectory_idx
-        self.trajectory_idx += int((150 * dt))
-        if self.trajectory_idx < len(self.trajectory.points):
-            self.angle = (
-                round((-self.trajectory.angles[self.trajectory_idx] + 90) / 18) * 18
-            )
-            super().update(dt)
-            self.rect.center = self.trajectory.points[self.trajectory_idx]
-        else:
-            self.angle = round((-self.trajectory.angles[-1] + 90) / 18) * 18
-            super().update(dt)
-            self.rect.center = self.trajectory.points[-1]
-            if prev_idx < len(self.trajectory.points) and self.trajectory_end_handler:
-                self.trajectory_end_handler(self)
+        had_finished = self.trajectory_provider.is_finished()
+        self.trajectory_provider.update(dt)
+        # The angle needs to be set before calling the super method (ie. rotating the image)
+        self.angle = (
+            round((-self.trajectory_provider.get_current_angle() + 90) / 18) * 18
+        )
+        super().update(dt)
+        # The position rect needs to be set after rotating the image because it may change its size
+        self.rect.center = self.trajectory_provider.get_current_position()
+        if (
+            not had_finished
+            and self.trajectory_provider.is_finished()
+            and self.trajectory_end_handler
+        ):
+            self.trajectory_end_handler(self)
 
 
 class SquadronEnemyFactory(Sprite):

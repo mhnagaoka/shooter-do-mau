@@ -16,7 +16,7 @@ def _interpolate_points(
     points: list[tuple[float, float]],
 ) -> tuple[list[tuple[int, int]], list[float]]:
     result_points: list[int, int] = []
-    result_speeds: list[float] = []
+    result_angles: list[float] = []
     prev_point = None
     for point in points:
         if prev_point is None:
@@ -31,68 +31,51 @@ def _interpolate_points(
                     result_points.append(
                         (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             elif point[0] >= prev_point[0] and point[1] < prev_point[1]:
                 for x in range(int(dx)):
                     result_points.append(
                         (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             elif point[0] < prev_point[0] and point[1] >= prev_point[1]:
                 for x in range(0, int(dx), -1):
                     result_points.append(
                         (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             else:
                 for x in range(0, int(dx), -1):
                     result_points.append(
                         (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
         else:
             if point[1] >= prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(int(dy)):
                     result_points.append(
                         (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             elif point[1] >= prev_point[1] and point[0] < prev_point[0]:
                 for y in range(int(dy)):
                     result_points.append(
                         (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             elif point[1] < prev_point[1] and point[0] >= prev_point[0]:
                 for y in range(0, int(dy), -1):
                     result_points.append(
                         (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
             else:
                 for y in range(0, int(dy), -1):
                     result_points.append(
                         (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
                     )
-                    result_speeds.append(angle)
+                    result_angles.append(angle)
         prev_point = point
-    return result_points, result_speeds
-
-
-def trajectory(
-    ctrlpoints: list[tuple[int, int]],
-) -> tuple[list[tuple[int, int]], list[float]]:
-    curve = BSpline.Curve()
-    curve.degree = 2
-    curve.ctrlpts = ctrlpoints
-    curve.delta = max(1 / len(ctrlpoints) / 4, 0.01)  # heuristically chosen
-    curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
-    result_points, result_angles = _interpolate_points(curve.evalpts)
-    if result_points[-1] != ctrlpoints[-1]:
-        result_points.append(
-            ctrlpoints[-1]
-        )  # (hacky) add the last point if it's not already there
-        result_angles.append(result_angles[-1])
     return result_points, result_angles
 
 
@@ -150,7 +133,12 @@ class PredefinedTrajectoryProvider(TrajectoryProvider):
 
 
 class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
-    def __init__(self, ctrlpoints: list[tuple[int, int]], initial_speed: float) -> None:
+    def __init__(
+        self,
+        ctrlpoints: list[tuple[int, int]],
+        initial_speed: float,
+        angle_quantum=18.0,
+    ) -> None:
         self._ctrlpoints = ctrlpoints
         self._curve = BSpline.Curve()
         self._curve.degree = 2
@@ -159,18 +147,53 @@ class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
         self._curve.knotvector = utilities.generate_knot_vector(
             self._curve.degree, len(self._curve.ctrlpts)
         )
-        points, angles = _interpolate_points(self._curve.evalpts)
+        positions, angles = _interpolate_points(self._curve.evalpts)
         # (hacky) make sure the last control point is included
-        if points[-1] != ctrlpoints[-1]:
-            points.append(ctrlpoints[-1])
+        if positions[-1] != ctrlpoints[-1]:
+            positions.append(ctrlpoints[-1])
             angles.append(angles[-1])
-        super().__init__((points, angles), initial_speed)
+        if angle_quantum > 0.0:
+            for i in range(len(angles)):
+                angles[i] = round(angles[i] / angle_quantum) * angle_quantum
+        super().__init__((positions, angles), initial_speed)
+
+
+class KeyboardTrajectoryProvider(TrajectoryProvider):
+    def __init__(self, initial_position: tuple[int, int], initial_speed: float) -> None:
+        self.position = Vector2(initial_position)
+        self.angle = 0.0
+        self.speed = initial_speed
+
+    def update(self, dt: float) -> None:
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP]:
+            self.position.y -= self.speed * dt
+        if keys[pygame.K_DOWN]:
+            self.position.y += self.speed * dt
+        if keys[pygame.K_LEFT]:
+            self.position.x -= self.speed * dt
+        if keys[pygame.K_RIGHT]:
+            self.position.x += self.speed * dt
+        if keys[pygame.K_PAGEUP]:
+            self.angle -= 180 * dt
+        if keys[pygame.K_PAGEDOWN]:
+            self.angle += 180 * dt
+
+    def get_current_position(self) -> tuple[int, int]:
+        return (int(self.position.x), int(self.position.y))
+
+    def get_current_angle(self) -> float:
+        return self.angle
+
+    def is_finished(self) -> bool:
+        return False
 
 
 class AnimatedSprite(Sprite):
-    def __init__(self, animation: Animation, *groups) -> None:
+    def __init__(self, animation: Animation, angle_offset: float, *groups) -> None:
         super().__init__(*groups)
         self.animation = animation
+        self.angle_offset = angle_offset
         self.image = self.animation.get_current_frame()
         self.rect = self.image.get_rect()
         self.rect.top = 0
@@ -178,16 +201,22 @@ class AnimatedSprite(Sprite):
         self.angle = 0.0
         self.animation_end_handler = None
 
+    def _update_image(self) -> None:
+        self.image = self.animation.get_current_frame()
+        effective_angle = -self.angle + self.angle_offset
+        if effective_angle != 0.0:
+            self.image = pygame.transform.rotate(self.image, effective_angle)
+        new_rect = self.image.get_rect()
+        new_rect.center = self.rect.center
+        self.rect = new_rect
+        print(effective_angle)
+
     def set_animation(self, animation: Animation, reset_angle=False) -> None:
         self.animation = animation
         if reset_angle:
             self.angle = 0.0
         self.image = self.animation.get_current_frame()
-        if self.angle != 0:
-            self.image = pygame.transform.rotate(self.image, self.angle)
-        new_rect = self.image.get_rect()
-        new_rect.center = self.rect.center
-        self.rect = new_rect
+        self._update_image()
 
     def on_animation_end(self, handler) -> "AnimatedSprite":
         self.animation_end_handler = handler
@@ -199,19 +228,18 @@ class AnimatedSprite(Sprite):
                 self.animation_end_handler(self)
             return
         self.animation.update(dt)
-        self.image = self.animation.get_current_frame()
-        if self.angle != 0:
-            self.image = pygame.transform.rotate(self.image, self.angle)
-        new_rect = self.image.get_rect()
-        new_rect.center = self.rect.center
-        self.rect = new_rect
+        self._update_image()
 
 
 class TrajectorySprite(AnimatedSprite):
     def __init__(
-        self, animation: Animation, trajectory_provider: TrajectoryProvider, *groups
+        self,
+        animation: Animation,
+        angle_offset: float,
+        trajectory_provider: TrajectoryProvider,
+        *groups,
     ) -> None:
-        super().__init__(animation, *groups)
+        super().__init__(animation, angle_offset, *groups)
         self.trajectory_provider = trajectory_provider
         self.rect.center = self.trajectory_provider.get_current_position()
         self.trajectory_end_handler = None
@@ -224,11 +252,9 @@ class TrajectorySprite(AnimatedSprite):
         had_finished = self.trajectory_provider.is_finished()
         self.trajectory_provider.update(dt)
         # The angle needs to be set before calling the super method (ie. rotating the image)
-        self.angle = (
-            round((-self.trajectory_provider.get_current_angle() + 90) / 18) * 18
-        )
+        self.angle = self.trajectory_provider.get_current_angle()
         super().update(dt)
-        # The position rect needs to be set after rotating the image because it may change its size
+        # The position rect needs to be set after rotating the image because the rotation may change its size
         self.rect.center = self.trajectory_provider.get_current_position()
         if (
             not had_finished

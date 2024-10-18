@@ -29,7 +29,7 @@ if __name__ == "__main__":
     prev_keys = None
     dragging_rect = None
     ctrl_rects: list[pygame.Rect] = list()
-    trajectory_provider = None
+    trajectory = None
     prev_trajectory_idx = 0
     trajectory_idx = 0
 
@@ -56,7 +56,9 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
+                trajectory = enemy.SplineTrajectoryProvider(
+                    ctrlpoints, 150.0
+                ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
 
         keys = pygame.key.get_pressed()
@@ -67,7 +69,9 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
+                trajectory = enemy.SplineTrajectoryProvider(
+                    ctrlpoints, 150.0
+                ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_i] and (prev_keys is None or not prev_keys[pygame.K_i]):
             for i, rect in enumerate(ctrl_rects):
@@ -86,7 +90,9 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
+                trajectory = enemy.SplineTrajectoryProvider(
+                    ctrlpoints, 150.0
+                ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_d] and (prev_keys is None or not prev_keys[pygame.K_d]):
             for i, rect in enumerate(ctrl_rects):
@@ -96,7 +102,9 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory_provider = enemy.SplineTrajectoryProvider(ctrlpoints, 150.0)
+                trajectory = enemy.SplineTrajectoryProvider(
+                    ctrlpoints, 150.0
+                ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
             tool_mode = (tool_mode + 1) % len(ToolMode)
@@ -107,14 +115,16 @@ if __name__ == "__main__":
                 trajectory_idx = 0
                 s = enemy.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
+                    90.0,
                     enemy.SplineTrajectoryProvider(ctrlpoints, 150.0),
+                    # enemy.KeyboardTrajectoryProvider((0, 0), 150.0),
                     group,
                 ).on_trajectory_end(
                     lambda sprite: sprite.on_animation_end(
                         lambda sprite: sprite.kill()
                     ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
                 )
-                print(ctrlpoints, len(trajectory_provider))
+                print(ctrlpoints, len(trajectory[0]))
 
         prev_keys = keys
 
@@ -131,8 +141,8 @@ if __name__ == "__main__":
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
                 prev = None
-                trajectory_points, _ = trajectory_provider.trajectory
-                for curr in trajectory_points:
+                trajectory_positions, _ = trajectory
+                for curr in trajectory_positions:
                     if prev is None:
                         prev = curr
                         continue

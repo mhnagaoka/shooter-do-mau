@@ -1,3 +1,5 @@
+import os
+
 import pygame
 
 from animation import Animation
@@ -70,10 +72,9 @@ def render_all(
 
 
 if __name__ == "__main__":
-    scale_factor = 4.0
+    scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
     pygame.init()
     screen = pygame.Surface((288, 288))
-    print(screen.get_rect())
     display = pygame.display.set_mode(
         (
             round(screen.get_width() * scale_factor),

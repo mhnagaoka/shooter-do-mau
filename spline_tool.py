@@ -1,3 +1,4 @@
+import os
 from enum import IntEnum
 
 import pygame
@@ -17,15 +18,22 @@ class ToolMode(IntEnum):
 tool_mode = ToolMode.SHOW_SPLINE
 
 if __name__ == "__main__":
+    scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
     pygame.init()
     screen = pygame.Surface((288, 288))
-    display = pygame.display.set_mode((screen.get_width() * 2, screen.get_height() * 2))
+    display = pygame.display.set_mode(
+        (
+            round(screen.get_width() * scale_factor),
+            round(screen.get_height() * scale_factor),
+        )
+    )
     pygame.display.set_caption("Spline Tool")
     mouse_pos = pygame.mouse.get_pos()
     clock = pygame.time.Clock()
     dt = 0
     running = True
-    mouse_pos = (0, 0)
+    mouse_trajectory_provider = enemy.MouseTrajectoryProvider(scale_factor)
+    mouse_pos = mouse_trajectory_provider.position
     prev_keys = None
     dragging_rect = None
     ctrl_rects: list[pygame.Rect] = list()
@@ -42,8 +50,8 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:
                 running = False
 
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_pos = (mouse_pos[0] // 2, mouse_pos[1] // 2)
+        mouse_trajectory_provider.update(dt)
+        mouse_pos = mouse_trajectory_provider.position
 
         if pygame.mouse.get_pressed()[0]:
             for rect in ctrl_rects:
@@ -117,7 +125,6 @@ if __name__ == "__main__":
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
                     90.0,
                     enemy.SplineTrajectoryProvider(ctrlpoints, 150.0),
-                    # enemy.KeyboardTrajectoryProvider((0, 0), 150.0),
                     group,
                 ).on_trajectory_end(
                     lambda sprite: sprite.on_animation_end(

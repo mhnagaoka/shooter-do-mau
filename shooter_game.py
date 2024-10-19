@@ -1,8 +1,8 @@
 import pygame
 from pygame import Surface
 
+import engine
 from animation import Animation
-import enemy
 from bullet import BulletFactory
 from crosshair import Crosshair
 from player import Player
@@ -57,7 +57,7 @@ class ShooterGame:
         self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
         self.enemy_group = pygame.sprite.RenderPlain()
         self.enemy_factory_group = pygame.sprite.Group()
-        enemy.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
+        engine.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
 
     def create_explosion(self) -> Animation:
         explosion = Animation(self.scaled_sprites[13:19], 0.01, False)
@@ -67,21 +67,21 @@ class ShooterGame:
         self.dt = dt
 
         if not any(sprite.alive() for sprite in self.enemy_factory_group):
-            enemy.ParallelEnemyFactory(
+            engine.ParallelEnemyFactory(
                 [
-                    enemy.CompositeEnemyFactory(
+                    engine.CompositeEnemyFactory(
                         [
-                            enemy.SquadronEnemyFactory(0.15, 5, 0),
-                            enemy.SquadronEnemyFactory(0.15, 5, 1),
-                            enemy.SquadronEnemyFactory(0.15, 5, 2),
-                            enemy.SquadronEnemyFactory(0.15, 5, 3),
+                            engine.SquadronEnemyFactory(0.15, 5, 0),
+                            engine.SquadronEnemyFactory(0.15, 5, 1),
+                            engine.SquadronEnemyFactory(0.15, 5, 2),
+                            engine.SquadronEnemyFactory(0.15, 5, 3),
                         ]
                     ),
-                    enemy.CompositeEnemyFactory(
+                    engine.CompositeEnemyFactory(
                         [
-                            enemy.SquadronEnemyFactory(0.5, 6, 4),
-                            enemy.SquadronEnemyFactory(0.5, 6, 5),
-                            enemy.SquadronEnemyFactory(0.5, 6, 6),
+                            engine.SquadronEnemyFactory(0.5, 6, 4),
+                            engine.SquadronEnemyFactory(0.5, 6, 5),
+                            engine.SquadronEnemyFactory(0.5, 6, 6),
                         ]
                     ),
                 ],

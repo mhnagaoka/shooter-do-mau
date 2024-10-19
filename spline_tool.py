@@ -3,7 +3,7 @@ from enum import IntEnum
 
 import pygame
 
-import enemy
+import engine
 from animation import Animation
 from surface_factory import SurfaceFactory
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     dt = 0
     running = True
-    mouse_trajectory_provider = enemy.MouseTrajectoryProvider(scale_factor)
+    mouse_trajectory_provider = engine.MouseTrajectoryProvider(scale_factor)
     mouse_pos = mouse_trajectory_provider.position
     prev_keys = None
     dragging_rect = None
@@ -64,7 +64,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.SplineTrajectoryProvider(
+                trajectory = engine.SplineTrajectoryProvider(
                     ctrlpoints, 150.0
                 ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
@@ -77,7 +77,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.SplineTrajectoryProvider(
+                trajectory = engine.SplineTrajectoryProvider(
                     ctrlpoints, 150.0
                 ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
@@ -98,7 +98,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.SplineTrajectoryProvider(
+                trajectory = engine.SplineTrajectoryProvider(
                     ctrlpoints, 150.0
                 ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
@@ -110,7 +110,7 @@ if __name__ == "__main__":
             tool_mode = ToolMode.SHOW_LINES
             if len(ctrl_rects) > 2:
                 ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = enemy.SplineTrajectoryProvider(
+                trajectory = engine.SplineTrajectoryProvider(
                     ctrlpoints, 150.0
                 ).trajectory
                 tool_mode = ToolMode.SHOW_SPLINE
@@ -121,10 +121,10 @@ if __name__ == "__main__":
         ):
             if len(ctrl_rects) > 2:
                 trajectory_idx = 0
-                s = enemy.TrajectorySprite(
+                s = engine.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
                     90.0,
-                    enemy.SplineTrajectoryProvider(ctrlpoints, 150.0),
+                    engine.SplineTrajectoryProvider(ctrlpoints, 150.0),
                     group,
                 ).on_trajectory_end(
                     lambda sprite: sprite.on_animation_end(

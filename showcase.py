@@ -3,7 +3,7 @@ import os
 import pygame
 
 from animation import Animation
-from enemy import KeyboardTrajectoryProvider, MouseTrajectoryProvider, TrajectorySprite
+from engine import KeyboardTrajectoryProvider, MouseTrajectoryProvider, TrajectorySprite
 from surface_factory import SurfaceFactory, trim
 
 

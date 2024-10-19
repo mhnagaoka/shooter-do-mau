@@ -209,7 +209,6 @@ class AnimatedSprite(Sprite):
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect
-        print(effective_angle)
 
     def set_animation(self, animation: Animation, reset_angle=False) -> None:
         self.animation = animation

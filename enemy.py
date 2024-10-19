@@ -159,28 +159,69 @@ class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
 
 
 class KeyboardTrajectoryProvider(TrajectoryProvider):
-    def __init__(self, initial_position: tuple[int, int], initial_speed: float) -> None:
+    def __init__(
+        self,
+        boundary: pygame.Rect,
+        initial_position: tuple[int, int],
+        initial_speed: float,
+        initial_rotation_speed: float,
+    ) -> None:
+        self.boundary = boundary
         self.position = Vector2(initial_position)
         self.angle = 0.0
         self.speed = initial_speed
+        self.rotation_speed = initial_rotation_speed
 
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             self.position.y -= self.speed * dt
+            if self.position.y < self.boundary.top:
+                self.position.y = self.boundary.top
         if keys[pygame.K_DOWN]:
             self.position.y += self.speed * dt
+            if self.position.y > self.boundary.bottom:
+                self.position.y = self.boundary.bottom
         if keys[pygame.K_LEFT]:
             self.position.x -= self.speed * dt
+            if self.position.x < self.boundary.left:
+                self.position.x = self.boundary.left
         if keys[pygame.K_RIGHT]:
             self.position.x += self.speed * dt
+            if self.position.x > self.boundary.right:
+                self.position.x = self.boundary.right
         if keys[pygame.K_PAGEUP]:
-            self.angle -= 180 * dt
+            self.angle -= self.rotation_speed * dt
         if keys[pygame.K_PAGEDOWN]:
-            self.angle += 180 * dt
+            self.angle += self.rotation_speed * dt
 
     def get_current_position(self) -> tuple[int, int]:
         return (int(self.position.x), int(self.position.y))
+
+    def get_current_angle(self) -> float:
+        return self.angle
+
+    def is_finished(self) -> bool:
+        return False
+
+
+class MouseTrajectoryProvider(TrajectoryProvider):
+    def __init__(
+        self, scale_factor: float, initial_position: tuple[int, int] = (0, 0)
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.position = initial_position
+        self.angle = 0.0
+
+    def update(self, dt: float) -> None:
+        mouse_pos = pygame.mouse.get_pos()
+        self.position = (
+            round(mouse_pos[0] / self.scale_factor),
+            round(mouse_pos[1] / self.scale_factor),
+        )
+
+    def get_current_position(self) -> tuple[int, int]:
+        return self.position
 
     def get_current_angle(self) -> float:
         return self.angle

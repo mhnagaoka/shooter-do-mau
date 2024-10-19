@@ -2,6 +2,10 @@ from pygame import Surface
 
 
 class Animation:
+    @staticmethod
+    def static(surface: Surface) -> "Animation":
+        return Animation([surface], float("Infinity"), loop=True)
+
     def __init__(self, frames: list[Surface], delay: float, loop: bool = False) -> None:
         self.frames = frames
         self.delay = delay

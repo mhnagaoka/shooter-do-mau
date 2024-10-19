@@ -1,6 +1,7 @@
 import pygame
 
 from animation import Animation
+from enemy import KeyboardTrajectoryProvider, MouseTrajectoryProvider, TrajectorySprite
 from surface_factory import SurfaceFactory, trim
 
 
@@ -69,9 +70,16 @@ def render_all(
 
 
 if __name__ == "__main__":
+    scale_factor = 4.0
     pygame.init()
     screen = pygame.Surface((288, 288))
-    display = pygame.display.set_mode((screen.get_width() * 2, screen.get_height() * 2))
+    print(screen.get_rect())
+    display = pygame.display.set_mode(
+        (
+            round(screen.get_width() * scale_factor),
+            round(screen.get_height() * scale_factor),
+        )
+    )
     pygame.display.set_caption("Surface Factory")
     pygame.mouse.set_visible(False)
     font = pygame.font.Font(pygame.font.get_default_font(), 12)
@@ -87,6 +95,21 @@ if __name__ == "__main__":
     enemy = factory.surfaces["red-enemy"][0]
     angle = 0
 
+    player_trajectory_provider = KeyboardTrajectoryProvider(
+        screen.get_rect(), (240, 240), 150.0, 180.0
+    )
+    player_group = pygame.sprite.RenderPlain()
+    player_anim = Animation(factory.surfaces["player-ship"], 0.1, loop=True)
+    player = TrajectorySprite(
+        player_anim, 0.0, player_trajectory_provider, player_group
+    )
+
+    mouse_trajectory_provider = MouseTrajectoryProvider(scale_factor)
+    reticle_group = pygame.sprite.RenderPlain()
+    reticle_anim = Animation.static(factory.surfaces["shots"][0])
+    reticle = TrajectorySprite(
+        reticle_anim, 0.0, mouse_trajectory_provider, reticle_group
+    )
     while running:
         # poll for events
         # pygame.QUIT event means the user clicked X to close your window
@@ -103,29 +126,18 @@ if __name__ == "__main__":
         for anim in animation.values():
             anim.update(dt)
 
-        # Rotation Test
-        enemy = pygame.transform.rotate(factory.surfaces["red-enemy"][0], angle)
-        enemy_rect = enemy.get_rect()
-        enemy_rect.center = (240, 240)
-        trimmed = trim(enemy)
+        # Rotation Test and keyboard driven sprite
+        player_group.update(dt)
+        player_group.draw(screen)
+        pygame.draw.rect(screen, "cyan", player.rect, 1)
+        trimmed = trim(player.image)
         trimmed_rect = trimmed.get_rect()
-        trimmed_rect.center = (240, 240)
-        screen.blit(enemy, enemy_rect)
-        pygame.draw.rect(screen, "white", enemy_rect, 1)
-        pygame.draw.rect(screen, "red", trimmed_rect, 1)
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            angle += 180 * dt
-        if keys[pygame.K_RIGHT]:
-            angle -= 180 * dt
+        trimmed_rect.center = player.rect.center
+        pygame.draw.rect(screen, "magenta", trimmed_rect, 1)
 
-        # Reticle
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_pos = (mouse_pos[0] // 2, mouse_pos[1] // 2)
-        reticle_surface = factory.surfaces["shots"][0]
-        reticle_rect = reticle_surface.get_rect()
-        reticle_rect.center = mouse_pos
-        screen.blit(reticle_surface, reticle_rect)
+        # Reticle (mouse driven sprite)
+        reticle_group.update(dt)
+        reticle_group.draw(screen)
 
         # flip() the display to put your work on screen
         display.blit(pygame.transform.scale(screen, display.get_size()), (0, 0))

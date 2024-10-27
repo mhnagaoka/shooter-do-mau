@@ -93,9 +93,6 @@ if __name__ == "__main__":
         animation[name] = Animation(frames, 0.1, loop=True)
     dt = 0
 
-    enemy = factory.surfaces["red-enemy"][0]
-    angle = 0
-
     player_trajectory_provider = KeyboardTrajectoryProvider(
         screen.get_rect(), (240, 240), 150.0, 180.0
     )

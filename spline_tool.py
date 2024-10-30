@@ -121,16 +121,22 @@ if __name__ == "__main__":
         ):
             if len(ctrl_rects) > 2:
                 trajectory_idx = 0
+
+                def explode(sprite):
+                    sprite.set_animation(Animation(factory.surfaces["explosion"], 0.22))
+                    sprite.on_animation_end(lambda sprite: sprite.kill())
+                    sprite.trajectory_provider = (
+                        engine.PredefinedTrajectoryProvider.fixed(
+                            sprite.rect.center, 0.0
+                        )
+                    )
+
                 s = engine.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
                     90.0,
                     engine.SplineTrajectoryProvider(ctrlpoints, 150.0),
                     group,
-                ).on_trajectory_end(
-                    lambda sprite: sprite.on_animation_end(
-                        lambda sprite: sprite.kill()
-                    ).set_animation(Animation(factory.surfaces["explosion"], 0.02))
-                )
+                ).on_trajectory_end(explode)
                 print(ctrlpoints, len(trajectory[0]))
 
         prev_keys = keys

@@ -94,6 +94,10 @@ class TrajectoryProvider:
 
 
 class PredefinedTrajectoryProvider(TrajectoryProvider):
+    @staticmethod
+    def fixed(coord: tuple[int, int], angle: float) -> "PredefinedTrajectoryProvider":
+        return PredefinedTrajectoryProvider(([coord], [angle]), 0)
+
     def __init__(
         self,
         trajectory: tuple[list[tuple[int, int]], list[float]],
@@ -241,6 +245,8 @@ class AnimatedSprite(Sprite):
         self.rect.left = 0
         self.angle = 0.0
         self.animation_end_handler = None
+        self.__gen = self.__create_gen()
+        next(self.__gen)
 
     def _update_image(self) -> None:
         self.image = self.animation.get_current_frame()
@@ -251,24 +257,32 @@ class AnimatedSprite(Sprite):
         new_rect.center = self.rect.center
         self.rect = new_rect
 
-    def set_animation(self, animation: Animation, reset_angle=False) -> None:
+    def set_animation(
+        self, animation: Animation, angle_offset=0.0, reset_angle=False
+    ) -> "AnimatedSprite":
         self.animation = animation
+        self.angle_offset = angle_offset
         if reset_angle:
             self.angle = 0.0
-        self.image = self.animation.get_current_frame()
         self._update_image()
+        return self
 
     def on_animation_end(self, handler) -> "AnimatedSprite":
         self.animation_end_handler = handler
         return self
 
+    def __create_gen(self) -> Generator[None, float, None]:
+        while not self.animation.is_finished():
+            dt = yield
+            self.animation.update(dt)
+            self._update_image()
+
     def update(self, dt: float) -> None:
-        if self.animation.is_finished():
+        try:
+            self.__gen.send(dt)
+        except StopIteration:
             if self.animation_end_handler:
                 self.animation_end_handler(self)
-            return
-        self.animation.update(dt)
-        self._update_image()
 
 
 class TrajectorySprite(AnimatedSprite):
@@ -283,18 +297,16 @@ class TrajectorySprite(AnimatedSprite):
         self.trajectory_provider = trajectory_provider
         self.rect.center = self.trajectory_provider.get_current_position()
         self.trajectory_end_handler = None
-        self._gen = self._create_gen()
-        next(self._gen)
+        self.__gen = self.__create_gen()
+        next(self.__gen)
 
     def on_trajectory_end(self, handler) -> "TrajectorySprite":
         self.trajectory_end_handler = handler
         return self
 
-    def _create_gen(self) -> Generator[None, float, None]:
+    def __create_gen(self) -> Generator[None, float, None]:
         while self.alive():
             dt = yield
-            if dt < 0.0:
-                break
             self.trajectory_provider.update(dt)
             self.angle = self.trajectory_provider.get_current_angle()
             self.rect.center = self.trajectory_provider.get_current_position()
@@ -303,7 +315,7 @@ class TrajectorySprite(AnimatedSprite):
     def update(self, dt: float) -> None:
         had_finished = self.trajectory_provider.is_finished()
         try:
-            self._gen.send(dt)
+            self.__gen.send(dt)
         except StopIteration:
             # Generator has ended, nothing to do about it
             pass

@@ -93,6 +93,42 @@ class TrajectoryProvider:
         pass
 
 
+class StraightTrajectoryProvider(TrajectoryProvider):
+    def __init__(
+        self,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        angle: float,
+        speed: float,
+    ) -> None:
+        self.start = start
+        self.end = end
+        self.speed = speed
+        self.angle = angle
+        self.position = Vector2(start)
+        if end is not None:
+            self._direction = Vector2(end) - Vector2(start)
+            self._distance = Vector2(end).distance_to(Vector2(start))
+        elif angle is not None:
+            self._direction = Vector2(1, 0).rotate(angle)
+            self._distance = float("Infinity")
+        else:
+            raise ValueError("Either end or angle must be provided")
+        self._direction.normalize_ip()
+
+    def update(self, dt: float) -> None:
+        self.position += self._direction * self.speed * dt
+
+    def get_current_position(self) -> tuple[int, int]:
+        return (int(self.position.x), int(self.position.y))
+
+    def get_current_angle(self) -> float:
+        return self.angle
+
+    def is_finished(self) -> bool:
+        return self.position.distance_to(Vector2(self.start)) >= self._distance
+
+
 class PredefinedTrajectoryProvider(TrajectoryProvider):
     @staticmethod
     def fixed(coord: tuple[int, int], angle: float) -> "PredefinedTrajectoryProvider":

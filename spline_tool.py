@@ -122,13 +122,22 @@ if __name__ == "__main__":
             if len(ctrl_rects) > 2:
                 trajectory_idx = 0
 
-                def explode(sprite):
-                    sprite.set_animation(Animation(factory.surfaces["explosion"], 0.22))
-                    sprite.on_animation_end(lambda sprite: sprite.kill())
-                    sprite.trajectory_provider = (
-                        engine.PredefinedTrajectoryProvider.fixed(
-                            sprite.rect.center, 0.0
-                        )
+                def explode(sprite: engine.TrajectorySprite):
+                    frames = factory.surfaces["explosion"][:]
+                    frames.reverse()
+                    frames = factory.surfaces["explosion"] + frames
+                    sprite.set_animation(Animation(frames, 0.03))
+                    sprite.on_animation_end(lambda s: s.kill())
+                    # sprite.trajectory_provider = (
+                    #     engine.PredefinedTrajectoryProvider.fixed(
+                    #         sprite.rect.center, 0.0
+                    #     )
+                    # )
+                    sprite.trajectory_provider = engine.StraightTrajectoryProvider(
+                        start=sprite.rect.center,
+                        end=None,
+                        angle=sprite.angle,
+                        speed=100.0,
                     )
 
                 s = engine.TrajectorySprite(

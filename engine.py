@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 
 import pygame
 from geomdl import BSpline, utilities
@@ -283,25 +283,40 @@ class TrajectorySprite(AnimatedSprite):
         self.trajectory_provider = trajectory_provider
         self.rect.center = self.trajectory_provider.get_current_position()
         self.trajectory_end_handler = None
+        self._gen = self._create_gen()
+        next(self._gen)
 
     def on_trajectory_end(self, handler) -> "TrajectorySprite":
         self.trajectory_end_handler = handler
         return self
 
+    def _create_gen(self) -> Generator[None, float, None]:
+        while self.alive():
+            dt = yield
+            if dt < 0.0:
+                break
+            self.trajectory_provider.update(dt)
+            self.angle = self.trajectory_provider.get_current_angle()
+            self.rect.center = self.trajectory_provider.get_current_position()
+            super().update(dt)
+
     def update(self, dt: float) -> None:
         had_finished = self.trajectory_provider.is_finished()
-        self.trajectory_provider.update(dt)
-        # The angle needs to be set before calling the super method (ie. rotating the image)
-        self.angle = self.trajectory_provider.get_current_angle()
-        super().update(dt)
-        # The position rect needs to be set after rotating the image because the rotation may change its size
-        self.rect.center = self.trajectory_provider.get_current_position()
-        if (
-            not had_finished
-            and self.trajectory_provider.is_finished()
-            and self.trajectory_end_handler
-        ):
-            self.trajectory_end_handler(self)
+        try:
+            self._gen.send(dt)
+        except StopIteration:
+            # Generator has ended, nothing to do about it
+            pass
+        finally:
+            if (
+                not had_finished
+                and self.trajectory_provider.is_finished()
+                and self.trajectory_end_handler
+            ):
+                self.trajectory_end_handler(self)
+
+    def kill(self):
+        super().kill()
 
 
 class SquadronEnemyFactory(Sprite):

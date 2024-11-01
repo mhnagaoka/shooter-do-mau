@@ -1,4 +1,3 @@
-import enum
 import random
 from typing import Generator
 

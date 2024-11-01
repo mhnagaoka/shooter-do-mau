@@ -12,7 +12,7 @@ from engine import (
     TrajectoryProvider,
     TrajectorySprite,
 )
-from surface_factory import SurfaceFactory
+from surface_factory import SurfaceFactory, crop
 
 
 class Cannon:
@@ -20,7 +20,9 @@ class Cannon:
         self, factory: SurfaceFactory, bullet_group: pygame.sprite.AbstractGroup
     ) -> None:
         self.bullet_group = bullet_group
-        self.bullet_anim = Animation.static(factory.surfaces["shots"][2])
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][2], 7, 0, 2, 8)
+        )
         self.refresh_time = 0.25
 
     def shoot(self, initial_pos: tuple[int, int]) -> None:
@@ -33,7 +35,9 @@ class Turret:
         self, factory: SurfaceFactory, bullet_group: pygame.sprite.AbstractGroup
     ) -> None:
         self.bullet_group = bullet_group
-        self.bullet_anim = Animation.static(factory.surfaces["shots"][1])
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
         self.refresh_time = 0.2
 
     def shoot(self, initial_pos: tuple[int, int], direction: float) -> None:

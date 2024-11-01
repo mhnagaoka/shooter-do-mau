@@ -66,6 +66,12 @@ def trim(image: pygame.Surface) -> pygame.Surface:
     return image.subsurface(pygame.Rect(left, top, right - left, bottom - top))
 
 
+def crop(
+    image: pygame.Surface, x: int, y: int, width: int, height: int
+) -> pygame.Surface:
+    return image.subsurface(pygame.Rect(x, y, width, height))
+
+
 class SurfaceFactory:
     def __init__(self, folders: list[str]) -> None:
         self.raw_surfaces: dict[str, pygame.Surface] = dict()

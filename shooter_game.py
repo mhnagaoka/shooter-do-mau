@@ -1,4 +1,5 @@
-import math
+import enum
+import random
 from typing import Generator
 
 import pygame
@@ -7,7 +8,9 @@ from animation import Animation
 from engine import (
     KeyboardTrajectoryProvider,
     MouseTrajectoryProvider,
+    SplineTrajectoryProvider,
     StraightTrajectoryProvider,
+    TrajectoryProvider,
     TrajectorySprite,
 )
 from surface_factory import SurfaceFactory
@@ -22,7 +25,7 @@ class Cannon:
         self.refresh_time = 0.25
 
     def shoot(self, initial_pos: tuple[int, int]) -> None:
-        straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 450.0)
+        straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 
@@ -101,6 +104,30 @@ class Player(TrajectorySprite):
             turret_timer = max(turret_timer - dt, 0.0)
 
 
+class RedEnemy(TrajectorySprite):
+    def __init__(
+        self,
+        scale_factor: float,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
+        super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    def _main_loop(self) -> Generator[None, float, None]:
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            pass
+
+
 class ShooterGame:
     def __init__(
         self, size: tuple[int, int], scale_factor: float, asset_folders: list[str]
@@ -112,6 +139,7 @@ class ShooterGame:
         self.player_group = pygame.sprite.RenderPlain()
         self.crosshair_group = pygame.sprite.RenderPlain()
         self.bullet_group = pygame.sprite.RenderPlain()
+        self.enemy_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
         self.generator = self._main_loop()
@@ -142,13 +170,57 @@ class ShooterGame:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
 
+    def _enemy_spawner(self) -> Generator[None, float, None]:
+        trajectories = [
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, 298)], 150.0),
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)], 150.0),
+            (
+                list(
+                    reversed([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)])
+                ),
+                150.0,
+            ),
+        ]
+
+        mode = "idle"
+        spawn_count = 0
+        squadron_size = 5
+        enemy_timer = 0.2
+
+        while True:
+            dt: float = yield
+            enemy_timer -= dt
+            if mode == "idle" and len(self.enemy_group) == 0:
+                mode = "spawing"
+                ctrlpoints, initial_speed = trajectories[
+                    random.randint(0, len(trajectories) - 1)
+                ]
+            if mode == "spawing":
+                if spawn_count < squadron_size:
+                    if enemy_timer <= 0.0:
+                        provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
+                        RedEnemy(
+                            self.scale_factor, self.factory, provider, self.enemy_group
+                        ).on_trajectory_end(lambda s: s.kill())
+                        enemy_timer = 0.2
+                        spawn_count += 1
+                else:
+                    mode = "idle"
+                    spawn_count = 0
+
     def _main_loop(self) -> Generator[None, float, None]:
+        enemy_generator = self._enemy_spawner()
+        next(enemy_generator)
         while True:
             dt: float = yield  # yields dt every time the game is updated
             self.screen.fill((0, 0, 0))
+
+            enemy_generator.send(dt)
+            self.enemy_group.update(dt)
             self.player_group.update(dt)
             self.crosshair_group.update(dt)
             self.bullet_group.update(dt)
+            self.enemy_group.draw(self.screen)
             self.player_group.draw(self.screen)
             self.crosshair_group.draw(self.screen)
             self.bullet_group.draw(self.screen)

@@ -10,6 +10,9 @@ from animation import Animation
 
 if TYPE_CHECKING:
     from shooter_game import ShooterGame
+import os
+
+SPRITE_DEBUG = os.getenv("SPRITE_DEBUG", "False").lower() in ("true", "1", "t")
 
 
 def _interpolate_points(
@@ -277,7 +280,7 @@ class AnimatedSprite(Sprite):
         super().__init__(*groups)
         self.animation = animation
         self.angle_offset = angle_offset
-        self.image = self.animation.get_current_frame()
+        self.image = self.animation.get_current_frame().copy()
         self.rect = self.image.get_rect()
         self.rect.top = 0
         self.rect.left = 0
@@ -287,12 +290,15 @@ class AnimatedSprite(Sprite):
         next(self.__gen)
 
     def _update_image(self) -> None:
-        self.image = self.animation.get_current_frame()
+        self.image = self.animation.get_current_frame().copy()
         # Rotate the image if necessary
         if self.angle_offset is not None:
             effective_angle = -self.angle + self.angle_offset
             if effective_angle != 0.0:
                 self.image = pygame.transform.rotate(self.image, effective_angle)
+        # Debug the bounding box
+        if SPRITE_DEBUG:
+            pygame.draw.rect(self.image, "magenta", self.image.get_rect(), 1)
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect

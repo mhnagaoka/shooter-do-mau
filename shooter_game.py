@@ -1,107 +1,156 @@
+import math
+from typing import Generator
+
 import pygame
-from pygame import Surface
 
-import engine
 from animation import Animation
-from bullet import BulletFactory
-from crosshair import Crosshair
-from player import Player
-from turret_bullet import TurretBulletFactory
+from engine import (
+    KeyboardTrajectoryProvider,
+    MouseTrajectoryProvider,
+    StraightTrajectoryProvider,
+    TrajectorySprite,
+)
+from surface_factory import SurfaceFactory
 
 
-def _crop_sprites(sprite_sheets: list[Surface]):
-    # https://ezgif.com/crop/ezgif-1-7dc8bcb030.png
-    cropped_sprites = [
-        sprite_sheets[0].subsurface((48, 38, 35, 37)),  # 0 player banking left 2
-        sprite_sheets[0].subsurface((88, 38, 35, 37)),  # 1 player banking left 1
-        sprite_sheets[0].subsurface((134, 38, 35, 37)),  # 2 player neutral
-        sprite_sheets[0].subsurface((182, 38, 35, 37)),  # 3 player banking right 1
-        sprite_sheets[0].subsurface((222, 38, 35, 37)),  # 4 player banking right 2
-        sprite_sheets[0].subsurface((40, 147, 45, 37)),  # 5 green enemy
-        sprite_sheets[1].subsurface((0, 0, 6, 8)),  # 6 bullet
-        sprite_sheets[2].subsurface((0, 0, 8, 8)),  # 7 bullet-2
-        sprite_sheets[3].subsurface((0, 0, 8, 8)),  # 8 bullet-3
-        sprite_sheets[4].subsurface((0, 0, 32, 32)),  # 9 laser
-        sprite_sheets[5].subsurface((0, 0, 4, 32)),  # 10 laser-2
-        sprite_sheets[6].subsurface((0, 0, 11, 11)),  # 11 crosshair
-        sprite_sheets[7].subsurface((0, 0, 31, 31)),  # 12 crosshair-2
-        sprite_sheets[8].subsurface((0, 0, 16, 16)),  # 13 explosion frame 0
-        sprite_sheets[8].subsurface((16, 0, 16, 16)),  # 14 explosion frame 1
-        sprite_sheets[8].subsurface((0, 16, 16, 16)),  # 15 explosion frame 2
-        sprite_sheets[8].subsurface((16, 16, 16, 16)),  # 16 explosion frame 3
-        sprite_sheets[8].subsurface((0, 32, 16, 16)),  # 17 explosion frame 4
-        sprite_sheets[8].subsurface((16, 32, 16, 16)),  # 18 explosion frame 5
-    ]
-    scaled_sprites = [pygame.transform.scale2x(s) for s in cropped_sprites]
-    scaled_sprites[13:19] = [pygame.transform.scale2x(s) for s in scaled_sprites[13:19]]
-    # scaled_sprites = [pygame.transform.scale(s, (s.get_width() * 1.5, s.get_height() * 1.5)) for s in cropped_sprites]
-    # scaled_sprites = cropped_sprites[:]
-    return (cropped_sprites, scaled_sprites)
+class Cannon:
+    def __init__(
+        self, factory: SurfaceFactory, bullet_group: pygame.sprite.AbstractGroup
+    ) -> None:
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(factory.surfaces["shots"][2])
+        self.refresh_time = 0.25
+
+    def shoot(self, initial_pos: tuple[int, int]) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 450.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class Turret:
+    def __init__(
+        self, factory: SurfaceFactory, bullet_group: pygame.sprite.AbstractGroup
+    ) -> None:
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(factory.surfaces["shots"][1])
+        self.refresh_time = 0.2
+
+    def shoot(self, initial_pos: tuple[int, int], direction: float) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class Player(TrajectorySprite):
+    def __init__(
+        self,
+        scale_factor: float,
+        factory: SurfaceFactory,
+        keyboard: KeyboardTrajectoryProvider,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.left_anim = Animation(factory.surfaces["player-ship-l"], 0.1, loop=True)
+        self.neutral_anim = Animation(factory.surfaces["player-ship"], 0.1, loop=True)
+        self.right_anim = Animation(factory.surfaces["player-ship-r"], 0.1, loop=True)
+        super().__init__(self.neutral_anim, None, keyboard, *groups)
+        self.generator = self._main_loop()
+        next(self.generator)
+        self.cannon: Cannon = None
+        self.turret: Turret = None
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    def _main_loop(self) -> Generator[None, float, None]:
+        cannon_timer = 0.0
+        turret_timer = 0.0
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            # Ugly hack to update the animation based on the pressed keys
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+                self.set_animation(self.left_anim)
+            elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+                self.set_animation(self.right_anim)
+            else:
+                self.set_animation(self.neutral_anim)
+            if keys[pygame.K_SPACE]:
+                if self.cannon is not None:
+                    if cannon_timer <= 0.0:
+                        self.cannon.shoot(self.rect.center)
+                        cannon_timer = self.cannon.refresh_time
+            button, _, _ = pygame.mouse.get_pressed()
+            if button:
+                # Shoot with the turret
+                if self.turret is not None:
+                    if turret_timer <= 0.0:
+                        mouse_pos = pygame.mouse.get_pos()
+                        player_pos = self.rect.center
+                        aim_vector = (
+                            mouse_pos[0] / self.scale_factor - player_pos[0],
+                            mouse_pos[1] / self.scale_factor - player_pos[1],
+                        )
+                        if aim_vector == (0, 0):
+                            aim_vector = (1, 0)
+                        shooting_angle = -pygame.Vector2(aim_vector).angle_to(
+                            pygame.Vector2(1, 0)
+                        )
+                        self.turret.shoot(self.rect.center, shooting_angle)
+                        turret_timer = self.turret.refresh_time
+            cannon_timer = max(cannon_timer - dt, 0.0)
+            turret_timer = max(turret_timer - dt, 0.0)
 
 
 class ShooterGame:
-    def __init__(self, screen: Surface, sprite_sheets: list[Surface]) -> None:
-        self.screen = screen
-        self.running = True
-        self.dt = 0.0
-        self.cropped_sprites, self.scaled_sprites = _crop_sprites(sprite_sheets)
-        self.player_pos = pygame.Vector2(
-            screen.get_width() / 2, screen.get_height() * 0.75
-        )
-        self.player_group = pygame.sprite.GroupSingle()
-        self.player = Player(self.scaled_sprites, self.player_group)
-        self.crosshair_group = pygame.sprite.GroupSingle()
-        self.crosshair = Crosshair([self.scaled_sprites[12]], self.crosshair_group)
+    def __init__(
+        self, size: tuple[int, int], scale_factor: float, asset_folders: list[str]
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.screen = pygame.Surface(size)
+        self.factory = SurfaceFactory(asset_folders)
+        self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
+        self.player_group = pygame.sprite.RenderPlain()
+        self.crosshair_group = pygame.sprite.RenderPlain()
         self.bullet_group = pygame.sprite.RenderPlain()
-        self.bullet_factory = BulletFactory([self.scaled_sprites[10]])
-        self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
-        self.enemy_group = pygame.sprite.RenderPlain()
-        self.enemy_factory_group = pygame.sprite.Group()
-        engine.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
+        self._create_player()
+        self._create_crosshair()
+        self.generator = self._main_loop()
+        next(self.generator)
 
-    def create_explosion(self) -> Animation:
-        explosion = Animation(self.scaled_sprites[13:19], 0.01, False)
-        return explosion
+    def update(self, dt: float) -> None:
+        self.generator.send(dt)
 
-    def process_frame(self, dt: float):
-        self.dt = dt
-
-        if not any(sprite.alive() for sprite in self.enemy_factory_group):
-            engine.ParallelEnemyFactory(
-                [
-                    engine.CompositeEnemyFactory(
-                        [
-                            engine.SquadronEnemyFactory(0.15, 5, 0),
-                            engine.SquadronEnemyFactory(0.15, 5, 1),
-                            engine.SquadronEnemyFactory(0.15, 5, 2),
-                            engine.SquadronEnemyFactory(0.15, 5, 3),
-                        ]
-                    ),
-                    engine.CompositeEnemyFactory(
-                        [
-                            engine.SquadronEnemyFactory(0.5, 6, 4),
-                            engine.SquadronEnemyFactory(0.5, 6, 5),
-                            engine.SquadronEnemyFactory(0.5, 6, 6),
-                        ]
-                    ),
-                ],
-                self.enemy_factory_group,
-            )
-
-        self.player_group.update(self)
-        self.crosshair_group.update(self)
-        self.bullet_group.update(self)
-        self.enemy_group.update(self)
-        self.enemy_factory_group.update(self)
-
-        self.player_group.draw(self.screen)
-        self.crosshair_group.draw(self.screen)
-        self.bullet_group.draw(self.screen)
-        self.enemy_group.draw(self.screen)
-
-        collision_result = pygame.sprite.groupcollide(
-            self.bullet_group, self.enemy_group, True, False
+    def _create_player(self) -> None:
+        keyboard = KeyboardTrajectoryProvider(
+            self.screen.get_rect(), self.screen.get_rect().center, 150.0, 180.0
         )
-        for kills in collision_result.values():
-            for enemy_killed in kills:
-                enemy_killed.set_animation(self.create_explosion(), True)
+        self.player = Player(
+            self.scale_factor, self.factory, keyboard, self.player_group
+        )
+        self.player.cannon = Cannon(self.factory, self.bullet_group)
+        self.player.turret = Turret(self.factory, self.bullet_group)
+
+    def _create_crosshair(self) -> TrajectorySprite:
+        mouse = MouseTrajectoryProvider(
+            self.scale_factor, self.screen.get_rect().center
+        )
+        crosshair_anim = Animation.static(self.factory.surfaces["shots"][0])
+        return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
+
+    def _clean_up_bullets(self) -> None:
+        for bullet in self.bullet_group:
+            if not self.screen.get_rect().colliderect(bullet.rect):
+                bullet.kill()
+
+    def _main_loop(self) -> Generator[None, float, None]:
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            self.screen.fill((0, 0, 0))
+            self.player_group.update(dt)
+            self.crosshair_group.update(dt)
+            self.bullet_group.update(dt)
+            self.player_group.draw(self.screen)
+            self.crosshair_group.draw(self.screen)
+            self.bullet_group.draw(self.screen)
+            # Kill bullets that are out of bounds
+            self._clean_up_bullets()

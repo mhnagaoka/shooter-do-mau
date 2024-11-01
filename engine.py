@@ -271,7 +271,9 @@ class MouseTrajectoryProvider(TrajectoryProvider):
 
 
 class AnimatedSprite(Sprite):
-    def __init__(self, animation: Animation, angle_offset: float, *groups) -> None:
+    def __init__(
+        self, animation: Animation, angle_offset: float | None, *groups
+    ) -> None:
         super().__init__(*groups)
         self.animation = animation
         self.angle_offset = angle_offset
@@ -286,9 +288,11 @@ class AnimatedSprite(Sprite):
 
     def _update_image(self) -> None:
         self.image = self.animation.get_current_frame()
-        effective_angle = -self.angle + self.angle_offset
-        if effective_angle != 0.0:
-            self.image = pygame.transform.rotate(self.image, effective_angle)
+        # Rotate the image if necessary
+        if self.angle_offset is not None:
+            effective_angle = -self.angle + self.angle_offset
+            if effective_angle != 0.0:
+                self.image = pygame.transform.rotate(self.image, effective_angle)
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect

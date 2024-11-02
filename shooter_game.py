@@ -141,8 +141,9 @@ class ShooterGame:
         self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
         self.player_group = pygame.sprite.RenderPlain()
         self.crosshair_group = pygame.sprite.RenderPlain()
-        self.bullet_group = pygame.sprite.RenderPlain()
+        self.player_bullet_group = pygame.sprite.RenderPlain()
         self.enemy_group = pygame.sprite.RenderPlain()
+        self.explosion_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
         self.generator = self._main_loop()
@@ -158,8 +159,8 @@ class ShooterGame:
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )
-        self.player.cannon = Cannon(self.factory, self.bullet_group)
-        self.player.turret = Turret(self.factory, self.bullet_group)
+        self.player.cannon = Cannon(self.factory, self.player_bullet_group)
+        self.player.turret = Turret(self.factory, self.player_bullet_group)
 
     def _create_crosshair(self) -> TrajectorySprite:
         mouse = MouseTrajectoryProvider(
@@ -169,9 +170,32 @@ class ShooterGame:
         return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
 
     def _clean_up_bullets(self) -> None:
-        for bullet in self.bullet_group:
+        for bullet in self.player_bullet_group:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
+
+    def _explode(self, sprite: TrajectorySprite):
+        frames = (
+            list(reversed(self.factory.surfaces["explosion"]))
+            + self.factory.surfaces["explosion"]
+        )
+        sprite.set_animation(Animation(frames, 0.02))
+        sprite.on_animation_end(lambda s: s.kill())
+        sprite.trajectory_provider = StraightTrajectoryProvider(
+            start=sprite.rect.center,
+            end=None,
+            angle=sprite.angle,
+            speed=100.0,
+        )
+
+    def _check_bullet_collision(self) -> None:
+        for bullet in self.player_bullet_group:
+            for enemy in self.enemy_group:
+                if bullet.rect.colliderect(enemy.rect):
+                    self._explode(enemy)
+                    self.enemy_group.remove(enemy)
+                    self.explosion_group.add(enemy)
+                    bullet.kill()
 
     def _enemy_spawner(self) -> Generator[None, float, None]:
         trajectories = [
@@ -219,13 +243,16 @@ class ShooterGame:
             self.screen.fill((0, 0, 0))
 
             enemy_generator.send(dt)
+            self.explosion_group.update(dt)
             self.enemy_group.update(dt)
             self.player_group.update(dt)
             self.crosshair_group.update(dt)
-            self.bullet_group.update(dt)
+            self.player_bullet_group.update(dt)
             self.enemy_group.draw(self.screen)
             self.player_group.draw(self.screen)
             self.crosshair_group.draw(self.screen)
-            self.bullet_group.draw(self.screen)
+            self.player_bullet_group.draw(self.screen)
+            self.explosion_group.draw(self.screen)
             # Kill bullets that are out of bounds
             self._clean_up_bullets()
+            self._check_bullet_collision()

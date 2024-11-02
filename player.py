@@ -51,7 +51,7 @@ class Player(Sprite):
             if keys[pygame.K_SPACE] or left_button:
                 game.bullet_factory.create_bullet(
                     Vector2(self.pos.x + self.image.get_width() / 2, self.pos.y),
-                    game.bullet_group,
+                    game.player_bullet_group,
                 )
                 self.cannon_timer += dt
         elif self.cannon_timer > CANNON_DELAY:
@@ -68,7 +68,7 @@ class Player(Sprite):
                 game.turret_bullet_factory.create_bullet(
                     player_center_pos,
                     direction,
-                    game.bullet_group,
+                    game.player_bullet_group,
                 )
                 self.turret_timer += dt
         elif self.turret_timer > TURRET_DELAY:

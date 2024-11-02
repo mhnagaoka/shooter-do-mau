@@ -304,7 +304,7 @@ class AnimatedSprite(Sprite):
         self.rect = new_rect
 
     def set_animation(
-        self, animation: Animation, angle_offset=0.0, reset_angle=False
+        self, animation: Animation, angle_offset: float | None = 0.0, reset_angle=False
     ) -> "AnimatedSprite":
         self.animation = animation
         self.angle_offset = angle_offset

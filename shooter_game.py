@@ -62,6 +62,7 @@ class Player(TrajectorySprite):
         next(self.generator)
         self.cannon: Cannon = None
         self.turret: Turret = None
+        self.controls_enabled = True
 
     def update(self, dt: float) -> None:
         super().update(dt)
@@ -72,6 +73,8 @@ class Player(TrajectorySprite):
         turret_timer = 0.0
         while True:
             dt: float = yield  # yields dt every time the game is updated
+            if not self.controls_enabled:
+                continue
             # Ugly hack to update the animation based on the pressed keys
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
@@ -115,14 +118,14 @@ class RedEnemy(TrajectorySprite):
         scale_factor: float,
         factory: SurfaceFactory,
         trajectory: TrajectoryProvider,
-        player: Player,
+        player_group: pygame.sprite.AbstractGroup,
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
         self.scale_factor = scale_factor
         self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
         super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
-        self.player = player
+        self.player_group = player_group
         self.bullet_group = bullet_group
         self.bullet_anim = Animation.static(
             crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
@@ -134,11 +137,11 @@ class RedEnemy(TrajectorySprite):
         super().update(dt)
         self.generator.send(dt)
 
-    def shoot(self) -> None:
+    def shoot(self, player: Player) -> None:
         initial_pos = self.rect.center
         direction = -pygame.Vector2(
-            self.player.rect.center[0] - initial_pos[0],
-            self.player.rect.center[1] - initial_pos[1],
+            player.rect.center[0] - initial_pos[0],
+            player.rect.center[1] - initial_pos[1],
         ).angle_to(pygame.Vector2(1, 0))
         angle_error = random.uniform(-10.0, 10.0)
         direction += angle_error
@@ -146,16 +149,15 @@ class RedEnemy(TrajectorySprite):
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
     def _main_loop(self) -> Generator[None, float, None]:
-        print("Enemy created")
         cannon_timer = 0.1
         while True:
             dt: float = yield  # yields dt every time the game is updated
-            if cannon_timer <= 0.0:
-                print("Enemy shooting")
-                self.shoot()
-                cannon_timer = 1.0
-            else:
-                cannon_timer = max(cannon_timer - dt, 0.0)
+            if self.player_group:
+                if cannon_timer <= 0.0:
+                    self.shoot(self.player_group.sprites()[0])
+                    cannon_timer = 1.0
+                else:
+                    cannon_timer = max(cannon_timer - dt, 0.0)
 
 
 class ShooterGame:
@@ -205,10 +207,9 @@ class ShooterGame:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
 
-    def _explode(self, sprite: TrajectorySprite):
-        frames = (
-            list(reversed(self.factory.surfaces["explosion"]))
-            + self.factory.surfaces["explosion"]
+    def _explode(self, sprite: TrajectorySprite, speed_after_explosion: float = 100.0):
+        frames = self.factory.surfaces["explosion"] + list(
+            reversed(self.factory.surfaces["explosion"])
         )
         sprite.set_animation(Animation(frames, 0.02))
         sprite.on_animation_end(lambda s: s.kill())
@@ -216,17 +217,29 @@ class ShooterGame:
             start=sprite.rect.center,
             end=None,
             angle=sprite.angle,
-            speed=100.0,
+            speed=speed_after_explosion,
         )
 
     def _check_bullet_collision(self) -> None:
-        for bullet in self.player_bullet_group:
-            for enemy in self.enemy_group:
-                if bullet.rect.colliderect(enemy.rect):
-                    self._explode(enemy)
-                    self.enemy_group.remove(enemy)
-                    self.explosion_group.add(enemy)
-                    bullet.kill()
+        # Check for collisions between bullets and enemies
+        enemy_collision_result = pygame.sprite.groupcollide(
+            self.player_bullet_group, self.enemy_group, True, False
+        )
+        for kills in enemy_collision_result.values():
+            for enemy_killed in kills:
+                self._explode(enemy_killed)
+                self.enemy_group.remove(enemy_killed)
+                self.explosion_group.add(enemy_killed)
+        # Check for collisions between bullets and player
+        player_collision_result = pygame.sprite.groupcollide(
+            self.player_group, self.enemy_bullet_group, False, True
+        )
+        if player_collision_result:
+            self.player.controls_enabled = False
+            self._explode(self.player, 0.0)
+            self.player_group.remove(self.player)
+            self.explosion_group.add(self.player)
+            self.player = None
 
     def _enemy_spawner(self) -> Generator[None, float, None]:
         trajectories = [
@@ -261,7 +274,7 @@ class ShooterGame:
                             self.scale_factor,
                             self.factory,
                             provider,
-                            self.player,
+                            self.player_group,
                             self.enemy_bullet_group,
                             self.enemy_group,
                         ).on_trajectory_end(lambda s: s.kill())

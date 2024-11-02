@@ -115,11 +115,18 @@ class RedEnemy(TrajectorySprite):
         scale_factor: float,
         factory: SurfaceFactory,
         trajectory: TrajectoryProvider,
+        player: Player,
+        bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
         self.scale_factor = scale_factor
         self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
         super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.player = player
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
         self.generator = self._main_loop()
         next(self.generator)
 
@@ -127,10 +134,28 @@ class RedEnemy(TrajectorySprite):
         super().update(dt)
         self.generator.send(dt)
 
+    def shoot(self) -> None:
+        initial_pos = self.rect.center
+        direction = -pygame.Vector2(
+            self.player.rect.center[0] - initial_pos[0],
+            self.player.rect.center[1] - initial_pos[1],
+        ).angle_to(pygame.Vector2(1, 0))
+        angle_error = random.uniform(-10.0, 10.0)
+        direction += angle_error
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 200.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
     def _main_loop(self) -> Generator[None, float, None]:
+        print("Enemy created")
+        cannon_timer = 0.1
         while True:
             dt: float = yield  # yields dt every time the game is updated
-            pass
+            if cannon_timer <= 0.0:
+                print("Enemy shooting")
+                self.shoot()
+                cannon_timer = 1.0
+            else:
+                cannon_timer = max(cannon_timer - dt, 0.0)
 
 
 class ShooterGame:
@@ -146,6 +171,7 @@ class ShooterGame:
         self.player_bullet_group = pygame.sprite.RenderPlain()
         self.enemy_group = pygame.sprite.RenderPlain()
         self.explosion_group = pygame.sprite.RenderPlain()
+        self.enemy_bullet_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
         self.generator = self._main_loop()
@@ -173,6 +199,9 @@ class ShooterGame:
 
     def _clean_up_bullets(self) -> None:
         for bullet in self.player_bullet_group:
+            if not self.screen.get_rect().colliderect(bullet.rect):
+                bullet.kill()
+        for bullet in self.enemy_bullet_group:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
 
@@ -211,7 +240,7 @@ class ShooterGame:
             ),
         ]
 
-        mode = "idle"
+        mode = 0  # 0 = idle, 1 = spawning
         spawn_count = 0
         squadron_size = 5
         enemy_timer = 0.2
@@ -219,22 +248,27 @@ class ShooterGame:
         while True:
             dt: float = yield
             enemy_timer -= dt
-            if mode == "idle" and len(self.enemy_group) == 0:
-                mode = "spawing"
+            if mode == 0 and len(self.enemy_group) == 0:
+                mode = 1
                 ctrlpoints, initial_speed = trajectories[
                     random.randint(0, len(trajectories) - 1)
                 ]
-            if mode == "spawing":
+            if mode == 1:
                 if spawn_count < squadron_size:
                     if enemy_timer <= 0.0:
                         provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
                         RedEnemy(
-                            self.scale_factor, self.factory, provider, self.enemy_group
+                            self.scale_factor,
+                            self.factory,
+                            provider,
+                            self.player,
+                            self.enemy_bullet_group,
+                            self.enemy_group,
                         ).on_trajectory_end(lambda s: s.kill())
                         enemy_timer = 0.2
                         spawn_count += 1
                 else:
-                    mode = "idle"
+                    mode = 0
                     spawn_count = 0
 
     def _main_loop(self) -> Generator[None, float, None]:
@@ -249,11 +283,13 @@ class ShooterGame:
             self.enemy_group.update(dt)
             self.player_group.update(dt)
             self.crosshair_group.update(dt)
+            self.enemy_bullet_group.update(dt)
             self.player_bullet_group.update(dt)
             self.enemy_group.draw(self.screen)
             self.player_group.draw(self.screen)
             self.crosshair_group.draw(self.screen)
             self.player_bullet_group.draw(self.screen)
+            self.enemy_bullet_group.draw(self.screen)
             self.explosion_group.draw(self.screen)
             # Kill bullets that are out of bounds
             self._clean_up_bullets()

@@ -85,6 +85,8 @@ class Player(TrajectorySprite):
                     if cannon_timer <= 0.0:
                         self.cannon.shoot(self.rect.center)
                         cannon_timer = self.cannon.refresh_time
+                    else:
+                        cannon_timer = max(cannon_timer - dt, 0.0)
             button, _, _ = pygame.mouse.get_pressed()
             if button:
                 # Shoot with the turret
@@ -103,8 +105,8 @@ class Player(TrajectorySprite):
                         )
                         self.turret.shoot(self.rect.center, shooting_angle)
                         turret_timer = self.turret.refresh_time
-            cannon_timer = max(cannon_timer - dt, 0.0)
-            turret_timer = max(turret_timer - dt, 0.0)
+                    else:
+                        turret_timer = max(turret_timer - dt, 0.0)
 
 
 class RedEnemy(TrajectorySprite):

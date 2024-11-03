@@ -22,12 +22,22 @@ def main():
     game = ShooterGame(size, scale_factor, ["assets"])
     display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
 
+    events = []
     while running:
+        events.clear()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif (
+                event.type == pygame.KEYDOWN or event.type == pygame.KEYUP
+            ) and event.unicode == " ":
+                events.append(event)
+
         dt = clock.tick(60) / 1000.0
-        game.update(dt)
+        try:
+            game.update(events, dt)
+        except StopIteration:
+            game = ShooterGame(size, scale_factor, ["assets"])
         display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
         pygame.display.flip()
 

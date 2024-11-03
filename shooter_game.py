@@ -2,6 +2,7 @@ import random
 from typing import Generator
 
 import pygame
+import pygame.event
 
 from animation import Animation
 from engine import (
@@ -128,7 +129,7 @@ class RedEnemy(TrajectorySprite):
         self.player_group = player_group
         self.bullet_group = bullet_group
         self.bullet_anim = Animation.static(
-            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+            crop(factory.surfaces["shots"][3], 7, 7, 2, 2)
         )
         self.generator = self._main_loop()
         next(self.generator)
@@ -145,7 +146,44 @@ class RedEnemy(TrajectorySprite):
         ).angle_to(pygame.Vector2(1, 0))
         angle_error = random.uniform(-10.0, 10.0)
         direction += angle_error
-        straight = StraightTrajectoryProvider(initial_pos, None, direction, 200.0)
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class InsectEnemy(TrajectorySprite):
+    def __init__(
+        self,
+        scale_factor: float,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        player_group: pygame.sprite.AbstractGroup,
+        bullet_group: pygame.sprite.AbstractGroup,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.neutral_anim = Animation.static(factory.surfaces["insect-enemies"][0])
+        super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.player_group = player_group
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][3], 7, 7, 2, 2)
+        )
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    def shoot(self, player: Player) -> None:
+        initial_pos = self.rect.center
+        direction = -pygame.Vector2(
+            player.rect.center[0] - initial_pos[0],
+            player.rect.center[1] - initial_pos[1],
+        ).angle_to(pygame.Vector2(1, 0))
+        angle_error = random.uniform(-10.0, 10.0)
+        direction += angle_error
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
     def _main_loop(self) -> Generator[None, float, None]:
@@ -158,6 +196,65 @@ class RedEnemy(TrajectorySprite):
                     cannon_timer = 1.0
                 else:
                     cannon_timer = max(cannon_timer - dt, 0.0)
+
+
+class EnemySpawner:
+    def __init__(self):
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, game: "ShooterGame", dt: float) -> None:
+        self.generator.send((game, dt))
+
+    def _main_loop(self) -> Generator[None, float, None]:
+        trajectories = [
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, 298)]),
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)]),
+            (
+                list(
+                    reversed([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)])
+                )
+            ),
+        ]
+
+        mode = 0  # 0 = idle, 1 = spawning
+        spawn_count = 0
+        squadron_size = 5
+        enemy_timer = 0.4
+
+        while True:
+            arg: tuple["ShooterGame", float] = yield
+            game, dt = arg
+            enemy_timer -= dt
+            if mode == 0 and len(game.enemy_group) == 0:
+                mode = 1
+                ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
+                initial_speed = 100.0
+                insect_type = random.randint(
+                    0, len(game.factory.surfaces["insect-enemies"]) - 1
+                )
+            if mode == 1:
+                if spawn_count < squadron_size:
+                    if enemy_timer <= 0.0:
+                        provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
+                        InsectEnemy(
+                            game.scale_factor,
+                            game.factory,
+                            provider,
+                            game.player_group,
+                            game.enemy_bullet_group,
+                            game.enemy_group,
+                        ).on_trajectory_end(lambda s: s.kill()).set_animation(
+                            Animation.static(
+                                game.factory.surfaces["insect-enemies"][insect_type],
+                            ),
+                            None,
+                        )
+                        enemy_timer = 0.4
+                        spawn_count += 1
+                else:
+                    mode = 0
+                    spawn_count = 0
 
 
 class ShooterGame:
@@ -176,11 +273,13 @@ class ShooterGame:
         self.enemy_bullet_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
+        self.score = 0
+        self.hi_score = 0
         self.generator = self._main_loop()
         next(self.generator)
 
-    def update(self, dt: float) -> None:
-        self.generator.send(dt)
+    def update(self, events: list[pygame.event.Event], dt: float) -> None:
+        self.generator.send((events, dt))
 
     def _create_player(self) -> None:
         keyboard = KeyboardTrajectoryProvider(
@@ -207,7 +306,7 @@ class ShooterGame:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
 
-    def _explode(self, sprite: TrajectorySprite, speed_after_explosion: float = 100.0):
+    def _explode(self, sprite: TrajectorySprite, explosion_spped: float = 0.0):
         frames = self.factory.surfaces["explosion"] + list(
             reversed(self.factory.surfaces["explosion"])
         )
@@ -217,7 +316,7 @@ class ShooterGame:
             start=sprite.rect.center,
             end=None,
             angle=sprite.angle,
-            speed=speed_after_explosion,
+            speed=explosion_spped,
         )
 
     def _check_bullet_collision(self) -> None:
@@ -227,7 +326,8 @@ class ShooterGame:
         )
         for kills in enemy_collision_result.values():
             for enemy_killed in kills:
-                self._explode(enemy_killed)
+                self.score += 100
+                self._explode(enemy_killed, 40.0)
                 self.enemy_group.remove(enemy_killed)
                 self.explosion_group.add(enemy_killed)
         # Check for collisions between bullets and player
@@ -241,69 +341,93 @@ class ShooterGame:
             self.explosion_group.add(self.player)
             self.player = None
 
-    def _enemy_spawner(self) -> Generator[None, float, None]:
-        trajectories = [
-            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, 298)], 150.0),
-            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)], 150.0),
-            (
-                list(
-                    reversed([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)])
-                ),
-                150.0,
-            ),
-        ]
-
-        mode = 0  # 0 = idle, 1 = spawning
-        spawn_count = 0
-        squadron_size = 5
-        enemy_timer = 0.2
-
-        while True:
-            dt: float = yield
-            enemy_timer -= dt
-            if mode == 0 and len(self.enemy_group) == 0:
-                mode = 1
-                ctrlpoints, initial_speed = trajectories[
-                    random.randint(0, len(trajectories) - 1)
-                ]
-            if mode == 1:
-                if spawn_count < squadron_size:
-                    if enemy_timer <= 0.0:
-                        provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
-                        RedEnemy(
-                            self.scale_factor,
-                            self.factory,
-                            provider,
-                            self.player_group,
-                            self.enemy_bullet_group,
-                            self.enemy_group,
-                        ).on_trajectory_end(lambda s: s.kill())
-                        enemy_timer = 0.2
-                        spawn_count += 1
-                else:
-                    mode = 0
-                    spawn_count = 0
+    def draw_score(self) -> None:
+        text = self.font.render(f"{self.score}", True, (255, 255, 255))
+        self.screen.blit(text, (self.screen.get_width() - text.get_width() - 5, 5))
 
     def _main_loop(self) -> Generator[None, float, None]:
-        enemy_generator = self._enemy_spawner()
-        next(enemy_generator)
+        enemy_spawner = EnemySpawner()
+        mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
         while True:
-            dt: float = yield  # yields dt every time the game is updated
+            events, dt = yield  # yields dt every time the game is updated
             self.screen.fill((0, 0, 0))
-
-            enemy_generator.send(dt)
-            self.explosion_group.update(dt)
-            self.enemy_group.update(dt)
-            self.player_group.update(dt)
-            self.crosshair_group.update(dt)
-            self.enemy_bullet_group.update(dt)
-            self.player_bullet_group.update(dt)
-            self.enemy_group.draw(self.screen)
-            self.player_group.draw(self.screen)
-            self.crosshair_group.draw(self.screen)
-            self.player_bullet_group.draw(self.screen)
-            self.enemy_bullet_group.draw(self.screen)
-            self.explosion_group.draw(self.screen)
-            # Kill bullets that are out of bounds
-            self._clean_up_bullets()
-            self._check_bullet_collision()
+            if mode == 0 or mode == 1:
+                text = self.font.render(
+                    "Hit the space bar to start.", True, (255, 255, 255)
+                )
+                self.screen.blit(
+                    text,
+                    (
+                        self.screen.get_rect().centerx - text.get_width() // 2,
+                        self.screen.get_rect().centery - text.get_height() // 2,
+                    ),
+                )
+                self.crosshair_group.update(dt)
+                self.crosshair_group.draw(self.screen)
+                for event in events:
+                    if (
+                        mode == 0
+                        and event.type == pygame.KEYDOWN
+                        and event.unicode == " "
+                    ):
+                        mode = 1
+                    elif (
+                        mode == 1
+                        and event.type == pygame.KEYUP
+                        and event.unicode == " "
+                    ):
+                        mode = 10
+            elif mode == 10 or mode == 20 or mode == 21:
+                enemy_spawner.update(self, dt)
+                self.explosion_group.update(dt)
+                self.enemy_group.update(dt)
+                self.player_group.update(dt)
+                self.crosshair_group.update(dt)
+                self.enemy_bullet_group.update(dt)
+                self.player_bullet_group.update(dt)
+                self.enemy_group.draw(self.screen)
+                self.player_group.draw(self.screen)
+                self.crosshair_group.draw(self.screen)
+                self.player_bullet_group.draw(self.screen)
+                self.enemy_bullet_group.draw(self.screen)
+                self.explosion_group.draw(self.screen)
+                self.draw_score()
+                # Kill bullets that are out of bounds
+                self._clean_up_bullets()
+                self._check_bullet_collision()
+                if (
+                    mode == 10
+                    and len(self.player_group) == 0
+                    and len(self.explosion_group) == 0
+                ):
+                    mode = 20
+                    game_over_timer = 10.0
+                if mode == 20 or mode == 21:
+                    text = self.font.render(
+                        "Game Over.",
+                        True,
+                        (255, 255, 255),
+                    )
+                    self.screen.blit(
+                        text,
+                        (
+                            self.screen.get_rect().centerx - text.get_width() // 2,
+                            self.screen.get_rect().centery - text.get_height() // 2,
+                        ),
+                    )
+                    for event in events:
+                        if (
+                            mode == 20
+                            and event.type == pygame.KEYDOWN
+                            and event.unicode == " "
+                        ):
+                            mode = 21
+                        elif (
+                            mode == 21
+                            and event.type == pygame.KEYUP
+                            and event.unicode == " "
+                        ):
+                            return
+                    game_over_timer -= dt
+                    if game_over_timer <= 0.0:
+                        return

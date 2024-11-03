@@ -22,14 +22,21 @@ class Cannon:
             crop(factory.surfaces["shots"][2], 7, 0, 2, 8)
         )
         self.refresh_time = 0.25
+        self.timer = 0.0
         self.power_source = power_source
         self.power_consumption = 10.0
 
+    def update(self, dt: float) -> None:
+        self.timer = max(self.timer - dt, 0.0)
+
     def shoot(self, initial_pos: tuple[int, int]) -> None:
+        if self.timer > 0.0:
+            return
         if not self.power_source or not self.power_source.available(
             self.power_consumption
         ):
             return
+        self.timer = self.refresh_time
         self.power_source.consume(self.power_consumption)
         straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
@@ -47,14 +54,21 @@ class Turret:
             crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
         )
         self.refresh_time = 0.2
+        self.timer = 0.0
         self.power_source = power_source
         self.power_consumption = 10.0
 
+    def update(self, dt: float) -> None:
+        self.timer = max(self.timer - dt, 0.0)
+
     def shoot(self, initial_pos: tuple[int, int], direction: float) -> None:
+        if self.timer > 0.0:
+            return
         if not self.power_source or not self.power_source.available(
             self.power_consumption
         ):
             return
+        self.timer = self.refresh_time
         self.power_source.consume(self.power_consumption)
         straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
@@ -119,8 +133,6 @@ class Player(TrajectorySprite):
             self._turret = turret
 
     def _main_loop(self) -> Generator[None, float, None]:
-        cannon_timer = 0.0
-        turret_timer = 0.0
         while True:
             dt: float = yield  # yields dt every time the game is updated
             if not self.controls_enabled:
@@ -135,30 +147,24 @@ class Player(TrajectorySprite):
                 self.set_animation(self.neutral_anim)
             if keys[pygame.K_SPACE]:
                 if self._cannon is not None:
-                    if cannon_timer <= 0.0:
-                        self._cannon.shoot(self.rect.center)
-                        cannon_timer = self._cannon.refresh_time
-                    else:
-                        cannon_timer = max(cannon_timer - dt, 0.0)
+                    self._cannon.shoot(self.rect.center)
             button, _, _ = pygame.mouse.get_pressed()
             if button:
                 # Shoot with the turret
                 if self._turret is not None:
-                    if turret_timer <= 0.0:
-                        mouse_pos = pygame.mouse.get_pos()
-                        player_pos = self.rect.center
-                        aim_vector = (
-                            mouse_pos[0] / self.scale_factor - player_pos[0],
-                            mouse_pos[1] / self.scale_factor - player_pos[1],
-                        )
-                        if aim_vector == (0, 0):
-                            aim_vector = (1, 0)
-                        shooting_angle = -pygame.Vector2(aim_vector).angle_to(
-                            pygame.Vector2(1, 0)
-                        )
-                        self._turret.shoot(self.rect.center, shooting_angle)
-                        turret_timer = self._turret.refresh_time
-                    else:
-                        turret_timer = max(turret_timer - dt, 0.0)
+                    mouse_pos = pygame.mouse.get_pos()
+                    player_pos = self.rect.center
+                    aim_vector = (
+                        mouse_pos[0] / self.scale_factor - player_pos[0],
+                        mouse_pos[1] / self.scale_factor - player_pos[1],
+                    )
+                    if aim_vector == (0, 0):
+                        aim_vector = (1, 0)
+                    shooting_angle = -pygame.Vector2(aim_vector).angle_to(
+                        pygame.Vector2(1, 0)
+                    )
+                    self._turret.shoot(self.rect.center, shooting_angle)
             print(self.power_source.power)
             self.power_source.charge(dt)
+            self._cannon.update(dt)
+            self._turret.update(dt)

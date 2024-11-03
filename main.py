@@ -37,7 +37,9 @@ def main():
         try:
             game.update(events, dt)
         except StopIteration:
+            old = game
             game = ShooterGame(size, scale_factor, ["assets"])
+            game.hi_score = old.hi_score
         display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
         pygame.display.flip()
 

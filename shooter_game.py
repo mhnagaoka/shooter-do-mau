@@ -277,6 +277,8 @@ class ShooterGame:
         self.hi_score = 0
         self.generator = self._main_loop()
         next(self.generator)
+        self.menu_generator = self._render_menu()
+        next(self.menu_generator)
 
     def update(self, events: list[pygame.event.Event], dt: float) -> None:
         self.generator.send((events, dt))
@@ -342,8 +344,46 @@ class ShooterGame:
             self.player = None
 
     def draw_score(self) -> None:
-        text = self.font.render(f"{self.score}", True, (255, 255, 255))
-        self.screen.blit(text, (self.screen.get_width() - text.get_width() - 5, 5))
+        color = "white"
+        if self.score >= self.hi_score:
+            color = "yellow"
+        text = self.font.render(f"{self.score}", True, color)
+        coord = (self.screen.get_width() - text.get_width() - 5, 5)
+        self.screen.blit(text, coord)
+
+    def draw_hi_score(self) -> None:
+        text = self.font.render(f"{self.hi_score}", True, (255, 255, 255))
+        coord = ((self.screen.get_width() - text.get_width()) // 2, 5)
+        self.screen.blit(text, coord)
+
+    def _render_menu(self) -> Generator[None, float, None]:
+        mode = 1  # 0: blink, 1: show
+        text = self.font.render("Hit the space bar to start.", True, (255, 255, 255))
+        coord = (
+            self.screen.get_rect().centerx - text.get_width() // 2,
+            self.screen.get_rect().centery - text.get_height() // 2,
+        )
+        frame_count = 100
+        while True:
+            dt = yield
+            if mode == 1:
+                self.screen.blit(text, coord)
+                if frame_count <= 0:
+                    if random.randint(0, 10) < 4:
+                        mode = 0
+                        blink_timer = 0.1
+                    else:
+                        frame_count = 100
+            else:
+                mode = 0
+                blink_timer -= dt
+                if blink_timer <= 0.0:
+                    mode = 1
+                    frame_count = 100
+            frame_count -= 1
+            self.crosshair_group.update(dt)
+            self.crosshair_group.draw(self.screen)
+            self.draw_hi_score()
 
     def _main_loop(self) -> Generator[None, float, None]:
         enemy_spawner = EnemySpawner()
@@ -352,18 +392,7 @@ class ShooterGame:
             events, dt = yield  # yields dt every time the game is updated
             self.screen.fill((0, 0, 0))
             if mode == 0 or mode == 1:
-                text = self.font.render(
-                    "Hit the space bar to start.", True, (255, 255, 255)
-                )
-                self.screen.blit(
-                    text,
-                    (
-                        self.screen.get_rect().centerx - text.get_width() // 2,
-                        self.screen.get_rect().centery - text.get_height() // 2,
-                    ),
-                )
-                self.crosshair_group.update(dt)
-                self.crosshair_group.draw(self.screen)
+                self.menu_generator.send(dt)
                 for event in events:
                     if (
                         mode == 0
@@ -392,6 +421,7 @@ class ShooterGame:
                 self.enemy_bullet_group.draw(self.screen)
                 self.explosion_group.draw(self.screen)
                 self.draw_score()
+                self.draw_hi_score()
                 # Kill bullets that are out of bounds
                 self._clean_up_bullets()
                 self._check_bullet_collision()
@@ -431,3 +461,5 @@ class ShooterGame:
                     game_over_timer -= dt
                     if game_over_timer <= 0.0:
                         return
+            if self.score > self.hi_score:
+                self.hi_score = self.score

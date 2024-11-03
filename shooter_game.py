@@ -49,8 +49,8 @@ class ShooterGame:
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )
-        self.player.cannon = Cannon(self.factory, self.player_bullet_group)
-        self.player.turret = Turret(self.factory, self.player_bullet_group)
+        self.player.equip(cannon=Cannon(self.factory, self.player_bullet_group))
+        self.player.equip(turret=Turret(self.factory, self.player_bullet_group))
 
     def _create_crosshair(self) -> TrajectorySprite:
         mouse = MouseTrajectoryProvider(

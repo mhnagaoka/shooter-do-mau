@@ -307,7 +307,8 @@ class AnimatedSprite(Sprite):
         self, animation: Animation, angle_offset: float | None = 0.0, reset_angle=False
     ) -> "AnimatedSprite":
         self.animation = animation
-        self.angle_offset = angle_offset
+        if angle_offset is not None:
+            self.angle_offset = angle_offset
         if reset_angle:
             self.angle = 0.0
         self._update_image()

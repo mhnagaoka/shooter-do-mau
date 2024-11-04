@@ -113,6 +113,21 @@ class Player(TrajectorySprite):
         super().update(dt)
         self.generator.send(dt)
 
+    def draw_power_bar(self, screen: pygame.Surface) -> None:
+        # Define the size and position of the power bar
+        bar_width = self.rect.width
+        bar_x = self.rect.x
+        bar_y = self.rect.y + self.rect.height + 2
+
+        # Calculate the width of the filled part of the bar
+        filled_width = int(bar_width * self.power_source.power / 100.0)
+
+        # Draw the background of the bar (empty part)
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, 1))
+
+        # Draw the filled part of the bar
+        pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, filled_width, 1))
+
     def equip(
         self,
         power_source: PowerSource = None,
@@ -164,7 +179,6 @@ class Player(TrajectorySprite):
                         pygame.Vector2(1, 0)
                     )
                     self._turret.shoot(self.rect.center, shooting_angle)
-            print(self.power_source.power)
             self.power_source.charge(dt)
             self._cannon.update(dt)
             self._turret.update(dt)

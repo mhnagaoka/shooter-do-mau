@@ -179,6 +179,8 @@ class ShooterGame:
                 self.player_bullet_group.draw(self.screen)
                 self.enemy_bullet_group.draw(self.screen)
                 self.explosion_group.draw(self.screen)
+                for player in self.player_group.sprites():
+                    player.draw_power_bar(self.screen)
                 self.draw_score()
                 self.draw_hi_score()
                 # Kill bullets that are out of bounds

@@ -24,6 +24,8 @@ class ShooterGame:
         self.screen = pygame.Surface(size)
         self.factory = SurfaceFactory(asset_folders)
         self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
+        self.bg = pygame.image.load("bg/nebula_288.png").convert()
+        self.bg.set_alpha(96)
         self.player_group = pygame.sprite.RenderPlain()
         self.crosshair_group = pygame.sprite.RenderPlain()
         self.player_bullet_group = pygame.sprite.RenderPlain()
@@ -155,6 +157,7 @@ class ShooterGame:
         while True:
             events, dt = yield  # yields dt every time the game is updated
             self.screen.fill((0, 0, 0))
+            self.screen.blit(self.bg, (0, 0))
             if mode == 0 or mode == 1:
                 self.menu_generator.send(dt)
                 for event in events:

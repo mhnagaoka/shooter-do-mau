@@ -7,7 +7,7 @@ from engine import (
     StraightTrajectoryProvider,
     TrajectorySprite,
 )
-from surface_factory import Animation, SurfaceFactory, crop
+from surface_factory import Animation, SurfaceFactory, crop, white_out
 
 
 class Cannon:
@@ -74,6 +74,29 @@ class Turret:
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 
+class Shield:
+    def __init__(self, power_source: "PowerSource" = None) -> None:
+        self.power_source = power_source
+        # Unit of damage absorbed per unit of power consumed (higher is better)
+        self.efficiency = 10.0 / 20.0  # 10 of damage absorbed per 20 of power consumed
+
+    def absorb(self, damage: float) -> bool:
+        """
+        Absorbs damage using the player's power source if available.
+
+        Args:
+            damage (float): The amount of damage to absorb.
+
+        Returns:
+            bool: True if the damage was absorbed using the power source, False otherwise.
+        """
+        power_needed = damage / self.efficiency
+        if self.power_source and self.power_source.available(power_needed):
+            self.power_source.consume(power_needed)
+            return True
+        return False
+
+
 class PowerSource:
     def __init__(self):
         self.power = 100.0
@@ -101,11 +124,29 @@ class Player(TrajectorySprite):
         self.left_anim = Animation(factory.surfaces["player-ship-l"], 0.1, loop=True)
         self.neutral_anim = Animation(factory.surfaces["player-ship"], 0.1, loop=True)
         self.right_anim = Animation(factory.surfaces["player-ship-r"], 0.1, loop=True)
+        self.left_anim_white_out = Animation(
+            [white_out(surface) for surface in factory.surfaces["player-ship-l"]],
+            0.1,
+            loop=True,
+        )
+        self.neutral_anim_white_out = Animation(
+            [white_out(surface) for surface in factory.surfaces["player-ship"]],
+            0.1,
+            loop=True,
+        )
+        self.rifht_anim_white_out = Animation(
+            [white_out(surface) for surface in factory.surfaces["player-ship-r"]],
+            0.1,
+            loop=True,
+        )
         super().__init__(self.neutral_anim, None, keyboard, *groups)
-        self.power_source = PowerSource()
-        self._cannon: Cannon = None
-        self._turret: Turret = None
+        self.power_source = None
+        self._cannon = None
+        self._turret = None
+        self._shield = None
+        self.equip(power_source=PowerSource())
         self.controls_enabled = True
+        self.white_out_timer = 0.0
         self.generator = self._main_loop()
         next(self.generator)
 
@@ -133,6 +174,7 @@ class Player(TrajectorySprite):
         power_source: PowerSource = None,
         cannon: Cannon = None,
         turret: Turret = None,
+        shield: Shield = None,
     ) -> None:
         if power_source is not None:
             self.power_source = power_source
@@ -140,12 +182,23 @@ class Player(TrajectorySprite):
                 self._cannon.power_source = power_source
             if self._turret is not None:
                 self._turret.power_source = power_source
+            if self._shield is not None:
+                self._shield.power_source = power_source
         if cannon is not None:
             cannon.power_source = self.power_source
             self._cannon = cannon
         if turret is not None:
             turret.power_source = self.power_source
             self._turret = turret
+        if shield is not None:
+            shield.power_source = self.power_source
+            self._shield = shield
+
+    def hit(self, damage: float) -> bool:
+        if self._shield is not None and self._shield.absorb(damage):
+            self.white_out_timer = 0.1
+            return False
+        return True
 
     def _main_loop(self) -> Generator[None, float, None]:
         while True:
@@ -155,11 +208,20 @@ class Player(TrajectorySprite):
             # Ugly hack to update the animation based on the pressed keys
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-                self.set_animation(self.left_anim)
+                if self.white_out_timer > 0.0:
+                    self.set_animation(self.left_anim_white_out)
+                else:
+                    self.set_animation(self.left_anim)
             elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-                self.set_animation(self.right_anim)
+                if self.white_out_timer > 0.0:
+                    self.set_animation(self.rifht_anim_white_out)
+                else:
+                    self.set_animation(self.right_anim)
             else:
-                self.set_animation(self.neutral_anim)
+                if self.white_out_timer > 0.0:
+                    self.set_animation(self.neutral_anim_white_out)
+                else:
+                    self.set_animation(self.neutral_anim)
             if keys[pygame.K_SPACE]:
                 if self._cannon is not None:
                     self._cannon.shoot(self.rect.center)
@@ -182,3 +244,4 @@ class Player(TrajectorySprite):
             self.power_source.charge(dt)
             self._cannon.update(dt)
             self._turret.update(dt)
+            self.white_out_timer = max(self.white_out_timer - dt, 0.0)

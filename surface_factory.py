@@ -72,6 +72,39 @@ def crop(
     return image.subsurface(pygame.Rect(x, y, width, height))
 
 
+def white_out(original_surface: pygame.Surface) -> pygame.Surface:
+    """
+    Converts all non-transparent pixels of the given surface to white while preserving their alpha values.
+
+    Args:
+        original_surface (pygame.Surface): The original surface to be processed.
+
+    Returns:
+        pygame.Surface: A new surface with the same dimensions as the original, where all non-transparent pixels are white.
+    """
+    # Create a new surface with the same dimensions and pixel format as the original
+    white_surface = pygame.Surface(original_surface.get_size(), pygame.SRCALPHA)
+
+    # Lock the surfaces for pixel access
+    original_surface.lock()
+    white_surface.lock()
+
+    # Iterate over each pixel in the original surface
+    for x in range(original_surface.get_width()):
+        for y in range(original_surface.get_height()):
+            # Get the pixel color at (x, y)
+            color = original_surface.get_at((x, y))
+            # If the pixel is not transparent, draw it as white on the new surface
+            if color.a != 0:
+                white_surface.set_at((x, y), pygame.Color(255, 255, 255, color.a))
+
+    # Unlock the surfaces
+    original_surface.unlock()
+    white_surface.unlock()
+
+    return white_surface
+
+
 class SurfaceFactory:
     def __init__(self, folders: list[str]) -> None:
         self.raw_surfaces: dict[str, pygame.Surface] = dict()

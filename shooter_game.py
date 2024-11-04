@@ -12,7 +12,7 @@ from engine import (
     StraightTrajectoryProvider,
     TrajectorySprite,
 )
-from player import Cannon, Player, Turret
+from player import Cannon, Player, Shield, Turret
 from surface_factory import SurfaceFactory
 
 
@@ -49,8 +49,11 @@ class ShooterGame:
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )
-        self.player.equip(cannon=Cannon(self.factory, self.player_bullet_group))
-        self.player.equip(turret=Turret(self.factory, self.player_bullet_group))
+        self.player.equip(
+            cannon=Cannon(self.factory, self.player_bullet_group),
+            turret=Turret(self.factory, self.player_bullet_group),
+            shield=Shield(),
+        )
 
     def _create_crosshair(self) -> TrajectorySprite:
         mouse = MouseTrajectoryProvider(
@@ -96,11 +99,13 @@ class ShooterGame:
             self.player_group, self.enemy_bullet_group, False, True
         )
         if player_collision_result:
-            self.player.controls_enabled = False
-            self._explode(self.player, 0.0)
-            self.player_group.remove(self.player)
-            self.explosion_group.add(self.player)
-            self.player = None
+            if self.player.hit(10.0):  # bullet damage
+                self.player.controls_enabled = False
+                self._explode(self.player, 0.0)
+                self.player_group.remove(self.player)
+                self.explosion_group.add(self.player)
+                self.player = None
+        # TODO: Check for collisions between enemies and player
 
     def draw_score(self) -> None:
         color = "white"

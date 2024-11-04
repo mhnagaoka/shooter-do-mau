@@ -45,9 +45,10 @@ class ShooterGame:
         self.generator.send((events, dt))
 
     def _create_player(self) -> None:
-        keyboard = KeyboardTrajectoryProvider(
-            self.screen.get_rect(), self.screen.get_rect().center, 150.0, 180.0
-        )
+        boundary = self.screen.get_rect().copy()
+        boundary.update(10, 10, boundary.width - 20, boundary.height - 22)
+        keyboard = KeyboardTrajectoryProvider(boundary, boundary.center, 150.0, 180.0)
+        print("player boundary", boundary)
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )

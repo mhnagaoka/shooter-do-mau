@@ -103,6 +103,7 @@ class StraightTrajectoryProvider(TrajectoryProvider):
         end: tuple[int, int],
         angle: float,
         speed: float,
+        angular_speed: float = 0.0,
     ) -> None:
         self.start = start
         self.end = end
@@ -117,10 +118,12 @@ class StraightTrajectoryProvider(TrajectoryProvider):
             self._distance = float("Infinity")
         else:
             raise ValueError("Either end or angle must be provided")
+        self.angular_speed = angular_speed
         self._direction.normalize_ip()
 
     def update(self, dt: float) -> None:
         self.position += self._direction * self.speed * dt
+        self.angle += self.angular_speed * dt
 
     def get_current_position(self) -> tuple[int, int]:
         return (int(self.position.x), int(self.position.y))

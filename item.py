@@ -1,13 +1,14 @@
+import random
 from animation import Animation
 from engine import StraightTrajectoryProvider, TrajectorySprite
-from surface_factory import SurfaceFactory
+from surface_factory import SurfaceFactory, trim
 
 
 class Item(TrajectorySprite):
     def __init__(
-        self, animation: Animation, power: float, trajectory_provider, *groups
+        self, animation: Animation, angle_offset: float, trajectory_provider, *groups
     ):
-        super().__init__(animation, power, trajectory_provider, *groups)
+        super().__init__(animation, angle_offset, trajectory_provider, *groups)
 
 
 class PowerCapsule(Item):
@@ -18,7 +19,10 @@ class PowerCapsule(Item):
         angle: float,
         *groups,
     ):
-        animation = Animation.static(factory.surfaces["bullet-2"][0])
-        trajectory_provider = StraightTrajectoryProvider(initial_pos, None, angle, 40.0)
-        super().__init__(animation, None, trajectory_provider, *groups)
+        animation = Animation.static(trim(factory.surfaces["items"][0]))
+        rotation_speed = random.choice([360, -360])
+        trajectory_provider = StraightTrajectoryProvider(
+            initial_pos, None, angle, 40.0, rotation_speed
+        )
+        super().__init__(animation, 0.0, trajectory_provider, *groups)
         self.power = 10.0

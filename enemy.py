@@ -2,7 +2,6 @@ import random
 import typing
 
 import pygame
-from player import Player
 
 from animation import Animation
 from engine import (
@@ -11,13 +10,25 @@ from engine import (
     TrajectoryProvider,
     TrajectorySprite,
 )
+from player import Player
 from surface_factory import SurfaceFactory, crop
 
 if typing.TYPE_CHECKING:
     from shooter_game import ShooterGame
 
 
-class RedEnemy(TrajectorySprite):
+class Enemy(TrajectorySprite):
+    def __init__(
+        self,
+        animation: Animation,
+        angle_offset: float,
+        trajectory_provider: TrajectoryProvider,
+        *groups: typing.Any,
+    ) -> None:
+        super().__init__(animation, angle_offset, trajectory_provider, *groups)
+
+
+class RedEnemy(Enemy):
     def __init__(
         self,
         factory: SurfaceFactory,
@@ -52,7 +63,7 @@ class RedEnemy(TrajectorySprite):
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 
-class InsectEnemy(TrajectorySprite):
+class InsectEnemy(Enemy):
     def __init__(
         self,
         factory: SurfaceFactory,

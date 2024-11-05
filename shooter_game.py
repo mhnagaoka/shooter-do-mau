@@ -5,13 +5,14 @@ import pygame
 import pygame.event
 
 from animation import Animation
-from enemy import EnemySpawner
+from enemy import Enemy, EnemySpawner
 from engine import (
     KeyboardTrajectoryProvider,
     MouseTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectorySprite,
 )
+from item import PowerCapsule
 from player import Cannon, Player, Shield, Turret
 from surface_factory import SurfaceFactory
 
@@ -32,6 +33,7 @@ class ShooterGame:
         self.enemy_group = pygame.sprite.RenderPlain()
         self.explosion_group = pygame.sprite.RenderPlain()
         self.enemy_bullet_group = pygame.sprite.RenderPlain()
+        self.item_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
         self.score = 0
@@ -64,15 +66,18 @@ class ShooterGame:
         crosshair_anim = Animation.static(self.factory.surfaces["shots"][0])
         return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
 
-    def _clean_up_bullets(self) -> None:
+    def _clean_up_oob_stuff(self) -> None:
         for bullet in self.player_bullet_group:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
         for bullet in self.enemy_bullet_group:
             if not self.screen.get_rect().colliderect(bullet.rect):
                 bullet.kill()
+        for item in self.item_group:
+            if not self.screen.get_rect().colliderect(item.rect):
+                item.kill()
 
-    def _explode(self, sprite: TrajectorySprite, explosion_spped: float = 0.0):
+    def _explode(self, sprite: TrajectorySprite, explosion_speed: float = 0.0):
         frames = self.factory.surfaces["explosion"] + list(
             reversed(self.factory.surfaces["explosion"])
         )
@@ -82,8 +87,17 @@ class ShooterGame:
             start=sprite.rect.center,
             end=None,
             angle=sprite.angle,
-            speed=explosion_spped,
+            speed=explosion_speed,
         )
+        # Some chance of enemy dropping a power capsule
+        if isinstance(sprite, Enemy) and random.random() < 0.5:
+            random_angle = random.uniform(-45.0, 45.0)
+            PowerCapsule(
+                self.factory,
+                sprite.rect.center,
+                sprite.angle + random_angle,
+                self.item_group,
+            )
 
     def _check_bullet_collision(self) -> None:
         # Check for collisions between bullets and enemies
@@ -107,7 +121,26 @@ class ShooterGame:
                 self.player_group.remove(self.player)
                 self.explosion_group.add(self.player)
                 self.player = None
+        # Check for collisions between bullets and items
+        item_collision_result = pygame.sprite.groupcollide(
+            self.player_bullet_group, self.item_group, True, False
+        )
+        for kills in item_collision_result.values():
+            for item_killed in kills:
+                self.score += 50
+                self._explode(item_killed, 40.0)
+                self.item_group.remove(item_killed)
+                self.explosion_group.add(item_killed)
         # TODO: Check for collisions between enemies and player
+
+    def _check_item_collision(self) -> None:
+        player_collision_result = pygame.sprite.groupcollide(
+            self.player_group, self.item_group, False, True
+        )
+        for player, items in player_collision_result.items():
+            for item in items:
+                if isinstance(item, PowerCapsule):
+                    player.power_source.charge_from(item)
 
     def draw_score(self) -> None:
         color = "white"
@@ -181,6 +214,8 @@ class ShooterGame:
                 self.crosshair_group.update(dt)
                 self.enemy_bullet_group.update(dt)
                 self.player_bullet_group.update(dt)
+                self.item_group.update(dt)
+                self.item_group.draw(self.screen)
                 self.enemy_group.draw(self.screen)
                 self.player_group.draw(self.screen)
                 self.crosshair_group.draw(self.screen)
@@ -191,9 +226,10 @@ class ShooterGame:
                     player.draw_power_bar(self.screen)
                 self.draw_score()
                 self.draw_hi_score()
-                # Kill bullets that are out of bounds
-                self._clean_up_bullets()
                 self._check_bullet_collision()
+                self._check_item_collision()
+                # Kill bullets that are out of bounds
+                self._clean_up_oob_stuff()
                 if (
                     mode == 10
                     and len(self.player_group) == 0

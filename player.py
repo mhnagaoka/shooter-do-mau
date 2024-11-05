@@ -7,6 +7,7 @@ from engine import (
     StraightTrajectoryProvider,
     TrajectorySprite,
 )
+from item import PowerCapsule
 from surface_factory import Animation, SurfaceFactory, crop, white_out
 
 
@@ -110,6 +111,9 @@ class PowerSource:
 
     def available(self, amount: float):
         return self.power >= amount
+
+    def charge_from(self, power_capsule: PowerCapsule):
+        self.power = min(self.power + power_capsule.power, 100.0)
 
 
 class Player(TrajectorySprite):

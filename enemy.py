@@ -20,14 +20,12 @@ if typing.TYPE_CHECKING:
 class RedEnemy(TrajectorySprite):
     def __init__(
         self,
-        scale_factor: float,
         factory: SurfaceFactory,
         trajectory: TrajectoryProvider,
         player_group: pygame.sprite.AbstractGroup,
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
-        self.scale_factor = scale_factor
         self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
         super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
         self.player_group = player_group
@@ -57,14 +55,12 @@ class RedEnemy(TrajectorySprite):
 class InsectEnemy(TrajectorySprite):
     def __init__(
         self,
-        scale_factor: float,
         factory: SurfaceFactory,
         trajectory: TrajectoryProvider,
         player_group: pygame.sprite.AbstractGroup,
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
-        self.scale_factor = scale_factor
         self.neutral_anim = Animation.static(factory.surfaces["insect-enemies"][0])
         super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
         self.player_group = player_group
@@ -142,7 +138,6 @@ class EnemySpawner:
                     if enemy_timer <= 0.0:
                         provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
                         InsectEnemy(
-                            game.scale_factor,
                             game.factory,
                             provider,
                             game.player_group,

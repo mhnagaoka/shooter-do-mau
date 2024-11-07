@@ -114,6 +114,7 @@ class ShooterGame:
         player_collision_result = pygame.sprite.groupcollide(
             self.player_group, self.enemy_bullet_group, False, True
         )
+        # TODO Fix: if more than one bullet hits the player, we're counting only one hit
         if player_collision_result:
             if self.player.hit(10.0):  # bullet damage
                 self.player.controls_enabled = False

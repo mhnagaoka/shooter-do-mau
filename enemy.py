@@ -51,6 +51,7 @@ class RedEnemy(Enemy):
         super().update(dt)
         self.generator.send(dt)
 
+    # TODO Do we need the player argument? We have the player group already
     def shoot(self, player: Player) -> None:
         initial_pos = self.rect.center
         direction = -pygame.Vector2(
@@ -86,6 +87,7 @@ class InsectEnemy(Enemy):
         super().update(dt)
         self.generator.send(dt)
 
+    # TODO Do we need the player argument? We have the player group already
     def shoot(self, player: Player) -> None:
         initial_pos = self.rect.center
         direction = -pygame.Vector2(

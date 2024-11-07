@@ -138,7 +138,7 @@ class Player(TrajectorySprite):
             0.1,
             loop=True,
         )
-        self.rifht_anim_white_out = Animation(
+        self.right_anim_white_out = Animation(
             [white_out(surface) for surface in factory.surfaces["player-ship-r"]],
             0.1,
             loop=True,
@@ -218,7 +218,7 @@ class Player(TrajectorySprite):
                     self.set_animation(self.left_anim)
             elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
                 if self.white_out_timer > 0.0:
-                    self.set_animation(self.rifht_anim_white_out)
+                    self.set_animation(self.right_anim_white_out)
                 else:
                     self.set_animation(self.right_anim)
             else:

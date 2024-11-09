@@ -202,7 +202,6 @@ class EnemySpawner:
                         / (player_pos[1] - initial_pos[1]),
                         screen_rect.bottom + off_screen_offset,
                     )
-                    print(f"{player_pos=}, {final_pos=}")
                 straight = StraightTrajectoryProvider(
                     initial_pos, final_pos, None, 120.0
                 )

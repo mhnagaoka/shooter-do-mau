@@ -5,13 +5,14 @@ import pygame
 
 from animation import Animation
 from engine import (
+    SeekingTrajectoryProvider,
     SplineTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectoryProvider,
     TrajectorySprite,
 )
 from player import Player
-from surface_factory import SurfaceFactory, crop
+from surface_factory import SurfaceFactory, crop, trim
 
 if typing.TYPE_CHECKING:
     from shooter_game import ShooterGame
@@ -41,9 +42,9 @@ class RedEnemy(Enemy):
         super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
         self.player_group = player_group
         self.bullet_group = bullet_group
-        self.bullet_anim = Animation.static(
-            crop(factory.surfaces["shots"][3], 7, 7, 2, 2)
-        )
+        # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
+        missile_surfaces = [crop(s, 6, 4, 3, 8) for s in factory.surfaces["missile"]]
+        self.bullet_anim = Animation(missile_surfaces, 0.05, loop=True)
         self.generator = self._main_loop()
         next(self.generator)
 
@@ -60,8 +61,23 @@ class RedEnemy(Enemy):
         ).angle_to(pygame.Vector2(1, 0))
         angle_error = random.uniform(-10.0, 10.0)
         direction += angle_error
-        straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        # straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
+        # TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        seeking = SeekingTrajectoryProvider(
+            initial_pos, self.trajectory_provider.get_current_angle(), 150.0, player
+        )
+        TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
+
+    def _main_loop(self) -> typing.Generator[None, float, None]:
+        cannon_timer = 0.1
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            if self.player_group:
+                if cannon_timer <= 0.0:
+                    self.shoot(self.player_group.sprites()[0])
+                    cannon_timer = 1.0
+                else:
+                    cannon_timer = max(cannon_timer - dt, 0.0)
 
 
 class InsectEnemy(Enemy):
@@ -140,7 +156,7 @@ class EnemySpawner:
             game, dt = arg
             enemy_timer -= dt
             if mode == 0 and len(game.enemy_group) == 0:
-                mode = 1
+                mode = 2
                 ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
                 initial_speed = 100.0
                 insect_type = random.randint(
@@ -167,3 +183,35 @@ class EnemySpawner:
                 else:
                     mode = 0
                     spawn_count = 0
+            if mode == 2:
+                # TODO Fix magic number
+                off_screen_offset = 10
+                screen_rect = game.screen.get_rect()
+                initial_pos = (screen_rect.centerx, screen_rect.top - off_screen_offset)
+                final_pos = (
+                    screen_rect.centerx,
+                    screen_rect.bottom + off_screen_offset,
+                )
+                if game.player_group:
+                    player_pos = game.player_group.sprites()[0].rect.center
+                    # Extrapolate the player position to the bottom of the screen
+                    final_pos = (
+                        initial_pos[0]
+                        + (player_pos[0] - initial_pos[0])
+                        * (screen_rect.bottom + off_screen_offset - initial_pos[1])
+                        / (player_pos[1] - initial_pos[1]),
+                        screen_rect.bottom + off_screen_offset,
+                    )
+                    print(f"{player_pos=}, {final_pos=}")
+                straight = StraightTrajectoryProvider(
+                    initial_pos, final_pos, None, 120.0
+                )
+
+                RedEnemy(
+                    game.factory,
+                    straight,
+                    game.player_group,
+                    game.enemy_bullet_group,
+                    game.enemy_group,
+                ).on_trajectory_end(lambda s: s.kill())
+                mode = 1

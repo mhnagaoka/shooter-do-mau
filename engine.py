@@ -113,6 +113,7 @@ class StraightTrajectoryProvider(TrajectoryProvider):
         if end is not None:
             self._direction = Vector2(end) - Vector2(start)
             self._distance = Vector2(end).distance_to(Vector2(start))
+            self.angle = -self._direction.angle_to(Vector2(1, 0))
         elif angle is not None:
             self._direction = Vector2(1, 0).rotate(angle)
             self._distance = float("Infinity")
@@ -202,6 +203,46 @@ class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
             for i in range(len(angles)):
                 angles[i] = round(angles[i] / angle_quantum) * angle_quantum
         super().__init__((positions, angles), initial_speed)
+
+
+class SeekingTrajectoryProvider(TrajectoryProvider):
+    def __init__(
+        self, start: tuple[int, int], angle: float, speed: float, mark: Sprite
+    ):
+        self.start = start
+        self.speed = speed
+        self.angle = angle
+        self.mark = mark
+        self.position = Vector2(start)
+        self.direction = Vector2(self.mark.rect.center) - self.position
+        super().__init__()
+
+    def update(self, dt: float) -> None:
+        if self.mark.alive():
+            new_direction = Vector2(self.mark.rect.center) - self.position
+            new_angle = -new_direction.angle_to(Vector2(1, 0))
+            diff_angle = new_angle - self.angle
+            if diff_angle > 180.0:
+                diff_angle -= 360.0
+            elif diff_angle < -180.0:
+                diff_angle += 360.0
+            max_diff = 1.0
+            if diff_angle > max_diff:
+                new_angle = self.angle + max_diff
+            elif diff_angle < -max_diff:
+                new_angle = self.angle - max_diff
+            self.angle = new_angle
+            self.direction = Vector2(1, 0).rotate(new_angle)
+        self.position += self.direction * self.speed * dt
+
+    def get_current_position(self) -> tuple[int, int]:
+        return (int(self.position.x), int(self.position.y))
+
+    def get_current_angle(self) -> float:
+        return self.angle
+
+    def is_finished(self) -> bool:
+        return False
 
 
 class KeyboardTrajectoryProvider(TrajectoryProvider):

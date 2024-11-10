@@ -12,10 +12,9 @@ class ToolMode(IntEnum):
     HIDE_ALL = 0
     SHOW_POINTS = 1
     SHOW_LINES = 2
-    SHOW_SPLINE = 3
 
 
-tool_mode = ToolMode.SHOW_SPLINE
+tool_mode = ToolMode.SHOW_LINES
 
 if __name__ == "__main__":
     scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
@@ -38,9 +37,6 @@ if __name__ == "__main__":
     dragging_rect = None
     ctrl_rects: list[pygame.Rect] = list()
     trajectory = None
-    prev_trajectory_idx = 0
-    trajectory_idx = 0
-
     factory = SurfaceFactory(["assets"])
     group = pygame.sprite.RenderPlain()
 
@@ -62,12 +58,6 @@ if __name__ == "__main__":
         if dragging_rect:
             dragging_rect.center = mouse_pos
             tool_mode = ToolMode.SHOW_LINES
-            if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = engine.SplineTrajectoryProvider(
-                    ctrlpoints, 150.0
-                ).trajectory
-                tool_mode = ToolMode.SHOW_SPLINE
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a] and (prev_keys is None or not prev_keys[pygame.K_a]):
@@ -75,12 +65,6 @@ if __name__ == "__main__":
             rect.center = mouse_pos
             ctrl_rects.append(rect)
             tool_mode = ToolMode.SHOW_LINES
-            if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = engine.SplineTrajectoryProvider(
-                    ctrlpoints, 150.0
-                ).trajectory
-                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_i] and (prev_keys is None or not prev_keys[pygame.K_i]):
             for i, rect in enumerate(ctrl_rects):
                 if i < len(ctrl_rects) - 1 and rect.collidepoint(
@@ -96,31 +80,18 @@ if __name__ == "__main__":
                     ctrl_rects.insert(i + 1, new_rect)
                     break
             tool_mode = ToolMode.SHOW_LINES
-            if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = engine.SplineTrajectoryProvider(
-                    ctrlpoints, 150.0
-                ).trajectory
-                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_d] and (prev_keys is None or not prev_keys[pygame.K_d]):
             for i, rect in enumerate(ctrl_rects):
                 if rect.collidepoint(mouse_pos):
                     ctrl_rects.pop(i)
                     break
             tool_mode = ToolMode.SHOW_LINES
-            if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                trajectory = engine.SplineTrajectoryProvider(
-                    ctrlpoints, 150.0
-                ).trajectory
-                tool_mode = ToolMode.SHOW_SPLINE
         if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
             tool_mode = (tool_mode + 1) % len(ToolMode)
         if keys[pygame.K_RETURN] and (
             prev_keys is None or not prev_keys[pygame.K_RETURN]
         ):
-            if len(ctrl_rects) > 2:
-                trajectory_idx = 0
+            if len(ctrl_rects) > 1:
 
                 def explode(sprite: engine.TrajectorySprite):
                     frames = factory.surfaces["explosion"][:]
@@ -140,13 +111,14 @@ if __name__ == "__main__":
                         speed=100.0,
                     )
 
+                ctrl_points = [rect.center for rect in ctrl_rects]
                 s = engine.TrajectorySprite(
                     Animation(factory.surfaces["red-enemy"], 0.1, loop=True),
                     90.0,
-                    engine.SplineTrajectoryProvider(ctrlpoints, 150.0),
+                    engine.LinearSegmentsTrajectoryProvider(ctrl_points, 150.0),
                     group,
                 ).on_trajectory_end(explode)
-                print(ctrlpoints, len(trajectory[0]))
+                print(ctrl_points)
 
         prev_keys = keys
 
@@ -159,17 +131,6 @@ if __name__ == "__main__":
                 if prev_rect:
                     pygame.draw.line(screen, "gray36", prev_rect.center, rect.center)
                 prev_rect = rect
-        if tool_mode >= ToolMode.SHOW_SPLINE:
-            if len(ctrl_rects) > 2:
-                ctrlpoints = [(r.center[0], r.center[1]) for r in ctrl_rects]
-                prev = None
-                trajectory_positions, _ = trajectory
-                for curr in trajectory_positions:
-                    if prev is None:
-                        prev = curr
-                        continue
-                    pygame.draw.line(screen, "green", prev, curr)
-                    prev = curr
         if tool_mode >= ToolMode.SHOW_POINTS:
             for i, rect in enumerate(ctrl_rects):
                 if rect.collidepoint(mouse_pos):

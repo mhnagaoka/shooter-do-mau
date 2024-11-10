@@ -1,5 +1,7 @@
 import asyncio
 import os
+import platform
+import sys
 
 import pygame
 
@@ -7,6 +9,9 @@ from shooter_game import ShooterGame
 
 
 async def main():
+    if sys.platform == "emscripten":
+        platform.window.canvas.style.imageRendering = "pixelated"
+
     pygame.init()
     pygame.display.set_caption("Shooter do Mau")
     pygame.mouse.set_visible(False)

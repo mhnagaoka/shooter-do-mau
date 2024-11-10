@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Generator
 
 import pygame
-from geomdl import BSpline, utilities
 from pygame import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
@@ -13,73 +12,6 @@ if TYPE_CHECKING:
 import os
 
 SPRITE_DEBUG = os.getenv("SPRITE_DEBUG", "False").lower() in ("true", "1", "t")
-
-
-def _interpolate_points(
-    points: list[tuple[float, float]],
-) -> tuple[list[tuple[int, int]], list[float]]:
-    result_points: list[int, int] = []
-    result_angles: list[float] = []
-    prev_point = None
-    for point in points:
-        if prev_point is None:
-            prev_point = point
-            continue
-        dx = point[0] - prev_point[0]
-        dy = point[1] - prev_point[1]
-        angle = Vector2(dx, dy).as_polar()[1]
-        if abs(dx) > abs(dy):
-            if point[0] >= prev_point[0] and point[1] >= prev_point[1]:
-                for x in range(int(dx)):
-                    result_points.append(
-                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
-                    )
-                    result_angles.append(angle)
-            elif point[0] >= prev_point[0] and point[1] < prev_point[1]:
-                for x in range(int(dx)):
-                    result_points.append(
-                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
-                    )
-                    result_angles.append(angle)
-            elif point[0] < prev_point[0] and point[1] >= prev_point[1]:
-                for x in range(0, int(dx), -1):
-                    result_points.append(
-                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
-                    )
-                    result_angles.append(angle)
-            else:
-                for x in range(0, int(dx), -1):
-                    result_points.append(
-                        (int(prev_point[0] + x), int(prev_point[1] + (dy / dx) * x))
-                    )
-                    result_angles.append(angle)
-        else:
-            if point[1] >= prev_point[1] and point[0] >= prev_point[0]:
-                for y in range(int(dy)):
-                    result_points.append(
-                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
-                    )
-                    result_angles.append(angle)
-            elif point[1] >= prev_point[1] and point[0] < prev_point[0]:
-                for y in range(int(dy)):
-                    result_points.append(
-                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
-                    )
-                    result_angles.append(angle)
-            elif point[1] < prev_point[1] and point[0] >= prev_point[0]:
-                for y in range(0, int(dy), -1):
-                    result_points.append(
-                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
-                    )
-                    result_angles.append(angle)
-            else:
-                for y in range(0, int(dy), -1):
-                    result_points.append(
-                        (int(prev_point[0] + (dx / dy) * y), int(prev_point[1] + y))
-                    )
-                    result_angles.append(angle)
-        prev_point = point
-    return result_points, result_angles
 
 
 class TrajectoryProvider:
@@ -94,6 +26,51 @@ class TrajectoryProvider:
 
     def is_finished(self) -> bool:
         pass
+
+
+class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
+    def __init__(self, ctrlpoints: list[tuple[int, int]], initial_speed: float) -> None:
+        super().__init__()
+        self._ctrlpoints = ctrlpoints
+        self._initial_speed = initial_speed
+        # Segment look-up table (distance range -> segment)
+        self._segment_lut = []
+        self._total_length = 0
+        for i in range(len(ctrlpoints) - 1):
+            begin = Vector2(ctrlpoints[i])
+            end = Vector2(ctrlpoints[i + 1])
+            delta = Vector2(end) - Vector2(begin)
+            delta_length = round(delta.length())
+            self._segment_lut.append(
+                (self._total_length, self._total_length + delta_length, begin, end)
+            )
+            self._total_length += delta_length
+        self._distance = 0
+        self._position = ctrlpoints[0]
+        self._angle = (end - begin).angle_to(Vector2(1, 0))
+
+    def update(self, dt: float) -> None:
+        self._distance += round(self._initial_speed * dt)
+        if self._distance > self._total_length:
+            self._distance = self._total_length
+        # find which segment we're in and interpolate
+        for initial, final, begin, end in self._segment_lut:
+            if initial <= self._distance <= final:
+                pos_vec = begin.lerp(
+                    end, (self._distance - initial) / (final - initial)
+                )
+                self._position = (int(pos_vec.x), int(pos_vec.y))
+                self._angle = -(end - begin).angle_to(Vector2(1, 0))
+                break
+
+    def get_current_position(self) -> tuple[int, int]:
+        return self._position
+
+    def get_current_angle(self) -> float:
+        return self._angle
+
+    def is_finished(self) -> bool:
+        return self._distance >= self._total_length
 
 
 class StraightTrajectoryProvider(TrajectoryProvider):
@@ -177,32 +154,6 @@ class PredefinedTrajectoryProvider(TrajectoryProvider):
 
     def reset(self) -> None:
         self.index = 0
-
-
-class SplineTrajectoryProvider(PredefinedTrajectoryProvider):
-    def __init__(
-        self,
-        ctrlpoints: list[tuple[int, int]],
-        initial_speed: float,
-        angle_quantum=18.0,
-    ) -> None:
-        self._ctrlpoints = ctrlpoints
-        self._curve = BSpline.Curve()
-        self._curve.degree = 2
-        self._curve.ctrlpts = ctrlpoints
-        self._curve.delta = max(1 / len(ctrlpoints) / 4, 0.01)  # heuristically chosen
-        self._curve.knotvector = utilities.generate_knot_vector(
-            self._curve.degree, len(self._curve.ctrlpts)
-        )
-        positions, angles = _interpolate_points(self._curve.evalpts)
-        # (hacky) make sure the last control point is included
-        if positions[-1] != ctrlpoints[-1]:
-            positions.append(ctrlpoints[-1])
-            angles.append(angles[-1])
-        if angle_quantum > 0.0:
-            for i in range(len(angles)):
-                angles[i] = round(angles[i] / angle_quantum) * angle_quantum
-        super().__init__((positions, angles), initial_speed)
 
 
 class SeekingTrajectoryProvider(TrajectoryProvider):

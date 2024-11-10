@@ -25,4 +25,4 @@ class PowerCapsule(Item):
             initial_pos, None, angle, 40.0, rotation_speed
         )
         super().__init__(animation, 0.0, trajectory_provider, *groups)
-        self.power = 10.0
+        self.power = 50.0

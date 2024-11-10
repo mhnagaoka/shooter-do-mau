@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pygame
@@ -5,7 +6,7 @@ import pygame
 from shooter_game import ShooterGame
 
 
-def main():
+async def main():
     pygame.init()
     pygame.display.set_caption("Shooter do Mau")
     pygame.mouse.set_visible(False)
@@ -33,6 +34,7 @@ def main():
             ) and event.unicode == " ":
                 events.append(event)
 
+        await asyncio.sleep(0)
         dt = clock.tick(60) / 1000.0
         try:
             game.update(events, dt)
@@ -44,5 +46,4 @@ def main():
         pygame.display.flip()
 
 
-if __name__ == "__main__":
-    main()
+asyncio.run(main())

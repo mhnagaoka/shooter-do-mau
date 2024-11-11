@@ -5,7 +5,7 @@ import pygame
 import pygame.event
 
 from animation import Animation
-from enemy import Enemy, EnemySpawner
+from enemy import Enemy, EnemySpawner, RedEnemy
 from engine import (
     KeyboardTrajectoryProvider,
     MouseTrajectoryProvider,
@@ -90,7 +90,15 @@ class ShooterGame:
             speed=explosion_speed,
         )
         # Some chance of enemy dropping a power capsule
-        if isinstance(sprite, Enemy) and random.random() < 0.5:
+        if isinstance(sprite, RedEnemy):
+            random_angle = random.uniform(-45.0, 45.0)
+            PowerCapsule(
+                self.factory,
+                sprite.rect.center,
+                sprite.angle + random_angle,
+                self.item_group,
+            ).power = 100.0
+        elif isinstance(sprite, Enemy) and random.random() < 0.5:
             random_angle = random.uniform(-45.0, 45.0)
             PowerCapsule(
                 self.factory,

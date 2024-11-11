@@ -143,17 +143,22 @@ class ShooterGame:
                 if isinstance(item, PowerCapsule):
                     player.power_source.charge_from(item)
 
+    def draw_wave_count(self, wave_count: int) -> None:
+        text = self.font.render(f"{wave_count}", True, (255, 255, 255))
+        coord = (5, 5)
+        self.screen.blit(text, coord)
+
     def draw_score(self) -> None:
         color = "white"
         if self.score >= self.hi_score:
             color = "yellow"
         text = self.font.render(f"{self.score}", True, color)
-        coord = (self.screen.get_width() - text.get_width() - 5, 5)
+        coord = ((self.screen.get_width() - text.get_width()) // 2, 5)
         self.screen.blit(text, coord)
 
     def draw_hi_score(self) -> None:
-        text = self.font.render(f"{self.hi_score}", True, (255, 255, 255))
-        coord = ((self.screen.get_width() - text.get_width()) // 2, 5)
+        text = self.font.render(f"HI {self.hi_score}", True, (255, 255, 255))
+        coord = (self.screen.get_width() - text.get_width() - 5, 5)
         self.screen.blit(text, coord)
 
     def _render_menu(self) -> Generator[None, float, None]:
@@ -225,6 +230,7 @@ class ShooterGame:
                 self.explosion_group.draw(self.screen)
                 for player in self.player_group.sprites():
                     player.draw_power_bar(self.screen)
+                self.draw_wave_count(enemy_spawner.wave_count)
                 self.draw_score()
                 self.draw_hi_score()
                 self._check_bullet_collision()

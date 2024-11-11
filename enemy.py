@@ -1,3 +1,4 @@
+from math import floor
 import random
 import typing
 
@@ -96,12 +97,14 @@ class InsectEnemy(Enemy):
         self.bullet_anim = Animation.static(
             crop(factory.surfaces["shots"][3], 7, 7, 2, 2)
         )
-        self.generator = self._main_loop()
-        next(self.generator)
+        self.shot_speed = 80.0
+        self.cannon_timer = 2.0
+        self._generator = self._main_loop()
+        next(self._generator)
 
     def update(self, dt: float) -> None:
         super().update(dt)
-        self.generator.send(dt)
+        self._generator.send(dt)
 
     # TODO Do we need the player argument? We have the player group already
     def shoot(self, player: Player) -> None:
@@ -112,7 +115,9 @@ class InsectEnemy(Enemy):
         ).angle_to(pygame.Vector2(1, 0))
         angle_error = random.uniform(-10.0, 10.0)
         direction += angle_error
-        straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
+        straight = StraightTrajectoryProvider(
+            initial_pos, None, direction, self.shot_speed
+        )
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
     def _main_loop(self) -> typing.Generator[None, float, None]:
@@ -122,15 +127,20 @@ class InsectEnemy(Enemy):
             if self.player_group:
                 if cannon_timer <= 0.0:
                     self.shoot(self.player_group.sprites()[0])
-                    cannon_timer = 1.0
+                    cannon_timer = self.cannon_timer
                 else:
                     cannon_timer = max(cannon_timer - dt, 0.0)
 
 
 class EnemySpawner:
     def __init__(self):
+        self._wave_count = 0
         self.generator = self._main_loop()
         next(self.generator)
+
+    @property
+    def wave_count(self) -> int:
+        return self._wave_count
 
     def update(self, game: "ShooterGame", dt: float) -> None:
         self.generator.send((game, dt))
@@ -198,38 +208,52 @@ class EnemySpawner:
         mode = 0  # 0 = idle, 1 = spawning
         spawn_count = 0
         squadron_size = 5
-        enemy_timer = 0.4
-
+        insect_spawn_timer = 0.4
+        self._wave_count = -1
         while True:
             arg: tuple["ShooterGame", float] = yield
             game, dt = arg
-            enemy_timer -= dt
+            insect_spawn_timer -= dt
             if mode == 0 and len(game.enemy_group) == 0:
+                self._wave_count += 1
+                difficulty = min(self._wave_count / 10, 1.0)
+                print(f"{self._wave_count=} {difficulty=}")
                 mode = 2
                 ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
-                initial_speed = 80.0
+                insect_speed = pygame.math.lerp(50.0, 150.0, difficulty)
+                insect_spawn_timer = 20 / insect_speed  # type to fly 20 px
+                insect_shot_speed = pygame.math.lerp(80.0, 180.0, difficulty)
+                cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty)
                 insect_type = random.randint(
                     0, len(game.factory.surfaces["insect-enemies"]) - 1
                 )
             if mode == 1:
                 if spawn_count < squadron_size:
-                    if enemy_timer <= 0.0:
+                    if insect_spawn_timer <= 0.0:
                         provider = LinearSegmentsTrajectoryProvider(
-                            ctrlpoints, initial_speed
+                            ctrlpoints, insect_speed
                         )
-                        InsectEnemy(
-                            game.factory,
-                            provider,
-                            game.player_group,
-                            game.enemy_bullet_group,
-                            game.enemy_group,
-                        ).on_trajectory_end(lambda s: s.kill()).set_animation(
-                            Animation.static(
-                                game.factory.surfaces["insect-enemies"][insect_type],
-                            ),
-                            None,
+                        insect_enemy = (
+                            InsectEnemy(
+                                game.factory,
+                                provider,
+                                game.player_group,
+                                game.enemy_bullet_group,
+                                game.enemy_group,
+                            )
+                            .on_trajectory_end(lambda s: s.kill())
+                            .set_animation(
+                                Animation.static(
+                                    game.factory.surfaces["insect-enemies"][
+                                        insect_type
+                                    ],
+                                ),
+                                None,
+                            )
                         )
-                        enemy_timer = 0.4
+                        insect_enemy.shot_speed = insect_shot_speed
+                        insect_enemy.cannon_timer = cannon_timer
+                        insect_spawn_timer = 20 / insect_speed  # type to fly 20 px
                         spawn_count += 1
                 else:
                     mode = 0

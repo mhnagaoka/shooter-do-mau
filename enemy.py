@@ -217,7 +217,6 @@ class EnemySpawner:
             if mode == 0 and len(game.enemy_group) == 0:
                 self._wave_count += 1
                 difficulty = min(self._wave_count / 10, 1.0)
-                print(f"{self._wave_count=} {difficulty=}")
                 mode = 2
                 ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
                 insect_speed = pygame.math.lerp(50.0, 150.0, difficulty)

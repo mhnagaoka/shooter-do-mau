@@ -12,8 +12,8 @@ from engine import (
     StraightTrajectoryProvider,
     TrajectorySprite,
 )
-from item import PowerCapsule
-from player import Cannon, Player, Shield, Turret
+import item
+from player import Cannon, FlakCannon, Minigun, Player, Shield, Turret, TurboLaser
 from surface_factory import SurfaceFactory
 
 
@@ -55,6 +55,9 @@ class ShooterGame:
         )
         self.player.equip(
             cannon=Cannon(self.factory, self.player_bullet_group),
+            # cannon=FlakCannon(self.factory, self.player_bullet_group),
+            # cannon=TurboLaser(self.factory, self.player_bullet_group),
+            # cannon=Minigun(self.factory, self.player_bullet_group),
             turret=Turret(self.factory, self.player_bullet_group),
             shield=Shield(),
         )
@@ -67,15 +70,15 @@ class ShooterGame:
         return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
 
     def _clean_up_oob_stuff(self) -> None:
-        for bullet in self.player_bullet_group:
-            if not self.screen.get_rect().colliderect(bullet.rect):
-                bullet.kill()
-        for bullet in self.enemy_bullet_group:
-            if not self.screen.get_rect().colliderect(bullet.rect):
-                bullet.kill()
-        for item in self.item_group:
-            if not self.screen.get_rect().colliderect(item.rect):
-                item.kill()
+        for b in self.player_bullet_group:
+            if not self.screen.get_rect().colliderect(b.rect):
+                b.kill()
+        for b in self.enemy_bullet_group:
+            if not self.screen.get_rect().colliderect(b.rect):
+                b.kill()
+        for i in self.item_group:
+            if not self.screen.get_rect().colliderect(i.rect):
+                i.kill()
 
     def _explode(self, sprite: TrajectorySprite, explosion_speed: float = 0.0):
         frames = self.factory.surfaces["explosion"] + list(
@@ -92,15 +95,19 @@ class ShooterGame:
         # Some chance of enemy dropping a power capsule
         if isinstance(sprite, RedEnemy):
             random_angle = random.uniform(-45.0, 45.0)
-            PowerCapsule(
+            items = [item.PowerCapsule, item.Minigun, item.FlakCannon, item.TurboLaser]
+            constructor = random.choice(items)
+            _item = constructor(
                 self.factory,
                 sprite.rect.center,
                 sprite.angle + random_angle,
                 self.item_group,
-            ).power = 100.0
+            )
+            if constructor.__name__ == "PowerCapsule":
+                _item.power = 100.0
         elif isinstance(sprite, Enemy) and random.random() < 0.5:
             random_angle = random.uniform(-45.0, 45.0)
-            PowerCapsule(
+            item.PowerCapsule(
                 self.factory,
                 sprite.rect.center,
                 sprite.angle + random_angle,
@@ -147,9 +154,20 @@ class ShooterGame:
             self.player_group, self.item_group, False, True
         )
         for player, items in player_collision_result.items():
-            for item in items:
-                if isinstance(item, PowerCapsule):
-                    player.power_source.charge_from(item)
+            for _item in items:
+                # TODO: Ugly code, refactor
+                if isinstance(_item, item.PowerCapsule):
+                    player.power_source.charge_from(_item)
+                elif isinstance(_item, item.Minigun):
+                    player.equip(cannon=Minigun(self.factory, self.player_bullet_group))
+                elif isinstance(_item, item.FlakCannon):
+                    player.equip(
+                        cannon=FlakCannon(self.factory, self.player_bullet_group)
+                    )
+                elif isinstance(_item, item.TurboLaser):
+                    player.equip(
+                        cannon=TurboLaser(self.factory, self.player_bullet_group)
+                    )
 
     def draw_wave_count(self, wave_count: int) -> None:
         text = self.font.render(f"{wave_count}", True, (255, 255, 255))

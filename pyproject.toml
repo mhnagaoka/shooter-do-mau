@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "geomdl>=5.3.1",
     "pygame>=2.6.1",
 ]
 [tool.ruff]

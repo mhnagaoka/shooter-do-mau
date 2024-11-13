@@ -6,7 +6,7 @@ import pygame
 from animation import Animation
 from engine import (
     SeekingTrajectoryProvider,
-    SplineTrajectoryProvider,
+    LinearSegmentsTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectoryProvider,
     TrajectorySprite,
@@ -137,11 +137,60 @@ class EnemySpawner:
 
     def _main_loop(self) -> typing.Generator[None, float, None]:
         trajectories = [
-            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, 298)]),
-            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)]),
+            [
+                (188, -10),
+                (30, 135),
+                (28, 163),
+                (46, 182),
+                (73, 175),
+                (211, 58),
+                (231, 58),
+                (244, 75),
+                (242, 103),
+                (53, 298),
+            ],
+            list(
+                reversed(
+                    [
+                        (188, -10),
+                        (30, 135),
+                        (28, 163),
+                        (46, 182),
+                        (73, 175),
+                        (211, 58),
+                        (231, 58),
+                        (244, 75),
+                        (242, 103),
+                        (53, 298),
+                    ]
+                )
+            ),
+            (
+                [
+                    (42, -10),
+                    (42, 123),
+                    (52, 140),
+                    (72, 149),
+                    (228, 149),
+                    (241, 141),
+                    (245, 124),
+                    (245, -10),
+                ]
+            ),
             (
                 list(
-                    reversed([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)])
+                    reversed(
+                        [
+                            (42, -10),
+                            (42, 123),
+                            (52, 140),
+                            (72, 149),
+                            (228, 149),
+                            (241, 141),
+                            (245, 124),
+                            (245, -10),
+                        ]
+                    )
                 )
             ),
         ]
@@ -158,14 +207,16 @@ class EnemySpawner:
             if mode == 0 and len(game.enemy_group) == 0:
                 mode = 2
                 ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
-                initial_speed = 100.0
+                initial_speed = 80.0
                 insect_type = random.randint(
                     0, len(game.factory.surfaces["insect-enemies"]) - 1
                 )
             if mode == 1:
                 if spawn_count < squadron_size:
                     if enemy_timer <= 0.0:
-                        provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
+                        provider = LinearSegmentsTrajectoryProvider(
+                            ctrlpoints, initial_speed
+                        )
                         InsectEnemy(
                             game.factory,
                             provider,

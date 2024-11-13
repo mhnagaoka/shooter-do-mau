@@ -1,214 +1,216 @@
-from typing import TYPE_CHECKING
+import random
+import typing
 
 import pygame
-from geomdl import BSpline, utilities
-from pygame import Vector2
-from pygame.sprite import Sprite
-from pygame.surface import Surface
 
 from animation import Animation
+from engine import (
+    SeekingTrajectoryProvider,
+    SplineTrajectoryProvider,
+    StraightTrajectoryProvider,
+    TrajectoryProvider,
+    TrajectorySprite,
+)
+from player import Player
+from surface_factory import SurfaceFactory, crop, trim
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from shooter_game import ShooterGame
 
 
-def _interpolation_points(points: list[(float, float)]) -> list[(float, float)]:
-    result = []
-    prev_point = None
-    for point in points:
-        if prev_point is None:
-            prev_point = point
-            continue
-        dx = point[0] - prev_point[0]
-        dy = point[1] - prev_point[1]
-        if abs(dx) > abs(dy):
-            if point[0] >= prev_point[0] and point[1] >= prev_point[1]:
-                for x in range(int(dx)):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
-            elif point[0] >= prev_point[0] and point[1] < prev_point[1]:
-                for x in range(int(dx)):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
-            elif point[0] < prev_point[0] and point[1] >= prev_point[1]:
-                for x in range(0, int(dx), -1):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
-            else:
-                for x in range(0, int(dx), -1):
-                    result.append((prev_point[0] + x, prev_point[1] + (dy / dx) * x))
-        else:
-            if point[1] >= prev_point[1] and point[0] >= prev_point[0]:
-                for y in range(int(dy)):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
-            elif point[1] >= prev_point[1] and point[0] < prev_point[0]:
-                for y in range(int(dy)):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
-            elif point[1] < prev_point[1] and point[0] >= prev_point[0]:
-                for y in range(0, int(dy), -1):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
-            else:
-                for y in range(0, int(dy), -1):
-                    result.append((prev_point[0] + (dx / dy) * y, prev_point[1] + y))
-        prev_point = point
-    return result
-
-
-def _init_spline_trajectories():
-    curve_ctrlpts_options = [
-        [(2, 82), (1050, 268), (949, 883), (137, 882), (83, 252), (1075, 93)],
-        [(2, 82), (599, 325), (580, 876), (137, 882), (50, 421), (218, 3)],
-        [(1071, 4), (139, 288), (145, 768), (978, 654), (418, 4)],
-        [
-            (1071, 4),
-            (614, 484),
-            (643, 751),
-            (1014, 725),
-            (1008, 421),
-            (91, 401),
-            (67, 713),
-            (415, 762),
-            (494, 471),
-            (2, 6),
-        ],
-        [(779, 3), (559, 263), (908, 511), (543, 817), (804, 1080)],
-        [(228, 0), (371, 127), (140, 500), (371, 764), (195, 1078)],
-        [(150, 12), (145, 1059), (997, 1054), (952, 8)],
-    ]
-
-    def trajectory(ctrlpoints: list[tuple[int, int]]) -> list[tuple[int, int]]:
-        curve = BSpline.Curve()
-        curve.degree = 2
-        curve.ctrlpts = ctrlpoints
-        curve.knotvector = utilities.generate_knot_vector(
-            curve.degree, len(curve.ctrlpts)
-        )
-        return _interpolation_points(curve.evalpts)
-
-    return [trajectory(ctrlpoints) for ctrlpoints in curve_ctrlpts_options]
-
-
-class SplineEnemy(Sprite):
-    trajectories = _init_spline_trajectories()
-
-    def __init__(self, images: list[Surface], trajectory_number: int, *groups) -> None:
-        super().__init__(*groups)
-        self.image = images[0]
-        self.rect = self.image.get_rect()
-        self.rect.top = -self.rect.height
-        self.pos = None
-        self.current_point = 0
-        if trajectory_number >= 0:
-            self.trajectory = SplineEnemy.trajectories[
-                trajectory_number % len(SplineEnemy.trajectories)
-            ]
-            self.pos = Vector2(self.trajectory[0][0], self.trajectory[0][1])
-        else:
-            # Negative trajectory number means the enemy is static
-            self.trajectory = None
-            self.pos = Vector2(50, 50)
-        self.animation = None
-        self.dokill = False
-
-    def set_animation(self, animation: Animation, dokill: bool) -> None:
-        self.animation = animation
-        self.dokill = dokill
-
-    def update(self, game: "ShooterGame") -> None:
-        # Update animation
-        if self.animation:
-            self.animation.update(game.dt)
-            self.image = self.animation.get_current_frame()
-            if self.animation.is_done() and self.dokill:
-                self.kill()
-                return
-
-        # Update trajectory (if any)
-        if self.trajectory:
-            # for i in range(len(self.trajectory)):
-            #     pygame.draw.circle(game.screen, "red", self.trajectory[i], 1)
-            if self.current_point < len(self.trajectory):
-                self.pos = Vector2(
-                    self.trajectory[self.current_point][0],
-                    self.trajectory[self.current_point][1],
-                )
-                self.current_point += int(600 * game.dt)
-            else:
-                self.kill()
-        self.rect.center = self.pos
-
-
-class SquadronEnemyFactory(Sprite):
+class Enemy(TrajectorySprite):
     def __init__(
-        self, period: float, size: int, trajectory_number: int, *groups
+        self,
+        animation: Animation,
+        angle_offset: float,
+        trajectory_provider: TrajectoryProvider,
+        *groups: typing.Any,
     ) -> None:
-        super().__init__(*groups)
-        self.count_down = 0
-        self.image = Surface((0, 0))
-        self.rect = self.image.get_rect()
-        self.period = period
-        self.size = size
-        self.trajectory_number = trajectory_number
-        self.spawned = []
+        super().__init__(animation, angle_offset, trajectory_provider, *groups)
 
-    def update(self, game: "ShooterGame") -> None:
-        if self.count_down <= 0:
-            if self.size > 0:
-                self.spawned.append(
-                    SplineEnemy(
-                        [game.scaled_sprites[5]],
-                        self.trajectory_number,
-                        game.enemy_group,
-                    )
+
+class RedEnemy(Enemy):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        player_group: pygame.sprite.AbstractGroup,
+        bullet_group: pygame.sprite.AbstractGroup,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
+        super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.player_group = player_group
+        self.bullet_group = bullet_group
+        # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
+        missile_surfaces = [crop(s, 6, 4, 3, 8) for s in factory.surfaces["missile"]]
+        self.bullet_anim = Animation(missile_surfaces, 0.05, loop=True)
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    # TODO Do we need the player argument? We have the player group already
+    def shoot(self, player: Player) -> None:
+        initial_pos = self.rect.center
+        direction = -pygame.Vector2(
+            player.rect.center[0] - initial_pos[0],
+            player.rect.center[1] - initial_pos[1],
+        ).angle_to(pygame.Vector2(1, 0))
+        angle_error = random.uniform(-10.0, 10.0)
+        direction += angle_error
+        # straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
+        # TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        seeking = SeekingTrajectoryProvider(
+            initial_pos, self.trajectory_provider.get_current_angle(), 150.0, player
+        )
+        TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
+
+    def _main_loop(self) -> typing.Generator[None, float, None]:
+        cannon_timer = 0.1
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            if self.player_group:
+                if cannon_timer <= 0.0:
+                    self.shoot(self.player_group.sprites()[0])
+                    cannon_timer = 1.0
+                else:
+                    cannon_timer = max(cannon_timer - dt, 0.0)
+
+
+class InsectEnemy(Enemy):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        player_group: pygame.sprite.AbstractGroup,
+        bullet_group: pygame.sprite.AbstractGroup,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.neutral_anim = Animation.static(factory.surfaces["insect-enemies"][0])
+        super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.player_group = player_group
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][3], 7, 7, 2, 2)
+        )
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    # TODO Do we need the player argument? We have the player group already
+    def shoot(self, player: Player) -> None:
+        initial_pos = self.rect.center
+        direction = -pygame.Vector2(
+            player.rect.center[0] - initial_pos[0],
+            player.rect.center[1] - initial_pos[1],
+        ).angle_to(pygame.Vector2(1, 0))
+        angle_error = random.uniform(-10.0, 10.0)
+        direction += angle_error
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+    def _main_loop(self) -> typing.Generator[None, float, None]:
+        cannon_timer = 0.1
+        while True:
+            dt: float = yield  # yields dt every time the game is updated
+            if self.player_group:
+                if cannon_timer <= 0.0:
+                    self.shoot(self.player_group.sprites()[0])
+                    cannon_timer = 1.0
+                else:
+                    cannon_timer = max(cannon_timer - dt, 0.0)
+
+
+class EnemySpawner:
+    def __init__(self):
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, game: "ShooterGame", dt: float) -> None:
+        self.generator.send((game, dt))
+
+    def _main_loop(self) -> typing.Generator[None, float, None]:
+        trajectories = [
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, 298)]),
+            ([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)]),
+            (
+                list(
+                    reversed([(38, -10), (39, 132), (140, 133), (257, 133), (257, -10)])
                 )
-                self.size -= 1
-                self.count_down = self.period
-            else:
-                if all(not enemy.alive() for enemy in self.spawned):
-                    self.kill()
-        else:
-            self.count_down -= game.dt
+            ),
+        ]
 
+        mode = 0  # 0 = idle, 1 = spawning
+        spawn_count = 0
+        squadron_size = 5
+        enemy_timer = 0.4
 
-class CompositeEnemyFactory(Sprite):
-    def __init__(self, enemy_factories: list[Sprite], *groups) -> None:
-        super().__init__(*groups)
-        self.image = Surface((0, 0))
-        self.rect = self.image.get_rect()
-        self.enemy_factories = enemy_factories[:]
-        self.current_factory = 0
-        dummy_group = pygame.sprite.Group()
-        for f in self.enemy_factories:
-            dummy_group.add(f)
+        while True:
+            arg: tuple["ShooterGame", float] = yield
+            game, dt = arg
+            enemy_timer -= dt
+            if mode == 0 and len(game.enemy_group) == 0:
+                mode = 2
+                ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
+                initial_speed = 100.0
+                insect_type = random.randint(
+                    0, len(game.factory.surfaces["insect-enemies"]) - 1
+                )
+            if mode == 1:
+                if spawn_count < squadron_size:
+                    if enemy_timer <= 0.0:
+                        provider = SplineTrajectoryProvider(ctrlpoints, initial_speed)
+                        InsectEnemy(
+                            game.factory,
+                            provider,
+                            game.player_group,
+                            game.enemy_bullet_group,
+                            game.enemy_group,
+                        ).on_trajectory_end(lambda s: s.kill()).set_animation(
+                            Animation.static(
+                                game.factory.surfaces["insect-enemies"][insect_type],
+                            ),
+                            None,
+                        )
+                        enemy_timer = 0.4
+                        spawn_count += 1
+                else:
+                    mode = 0
+                    spawn_count = 0
+            if mode == 2:
+                # TODO Fix magic number
+                off_screen_offset = 10
+                screen_rect = game.screen.get_rect()
+                initial_pos = (screen_rect.centerx, screen_rect.top - off_screen_offset)
+                final_pos = (
+                    screen_rect.centerx,
+                    screen_rect.bottom + off_screen_offset,
+                )
+                if game.player_group:
+                    player_pos = game.player_group.sprites()[0].rect.center
+                    # Extrapolate the player position to the bottom of the screen
+                    final_pos = (
+                        initial_pos[0]
+                        + (player_pos[0] - initial_pos[0])
+                        * (screen_rect.bottom + off_screen_offset - initial_pos[1])
+                        / (player_pos[1] - initial_pos[1]),
+                        screen_rect.bottom + off_screen_offset,
+                    )
+                straight = StraightTrajectoryProvider(
+                    initial_pos, final_pos, None, 120.0
+                )
 
-    def add_factory(self, factory: Sprite) -> None:
-        self.enemy_factories.append(factory)
-
-    def update(self, game: "ShooterGame") -> None:
-        if self.current_factory < len(self.enemy_factories):
-            self.enemy_factories[self.current_factory].update(game)
-            if not self.enemy_factories[self.current_factory].alive():
-                self.current_factory += 1
-        else:
-            self.kill()
-
-
-class ParallelEnemyFactory(Sprite):
-    def __init__(self, enemy_factories: list[Sprite], *groups) -> None:
-        super().__init__(*groups)
-        self.image = Surface((0, 0))
-        self.rect = self.image.get_rect()
-        self.enemy_factories = enemy_factories[:]
-        self.current_factory = 0
-        dummy_group = pygame.sprite.Group()
-        for f in self.enemy_factories:
-            dummy_group.add(f)
-
-    def add_factory(self, factory: Sprite) -> None:
-        self.enemy_factories.append(factory)
-
-    def update(self, game: "ShooterGame") -> None:
-        all_dead = True
-        for f in self.enemy_factories:
-            if f.alive():
-                f.update(game)
-                all_dead = False
-        if all_dead:
-            self.kill()
+                RedEnemy(
+                    game.factory,
+                    straight,
+                    game.player_group,
+                    game.enemy_bullet_group,
+                    game.enemy_group,
+                ).on_trajectory_end(lambda s: s.kill())
+                mode = 1

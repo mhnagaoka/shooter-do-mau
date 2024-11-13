@@ -1,107 +1,271 @@
+import random
+from typing import Generator
+
 import pygame
-from pygame import Surface
+import pygame.event
 
 from animation import Animation
-import enemy
-from bullet import BulletFactory
-from crosshair import Crosshair
-from player import Player
-from turret_bullet import TurretBulletFactory
-
-
-def _crop_sprites(sprite_sheets: list[Surface]):
-    # https://ezgif.com/crop/ezgif-1-7dc8bcb030.png
-    cropped_sprites = [
-        sprite_sheets[0].subsurface((48, 38, 35, 37)),  # 0 player banking left 2
-        sprite_sheets[0].subsurface((88, 38, 35, 37)),  # 1 player banking left 1
-        sprite_sheets[0].subsurface((134, 38, 35, 37)),  # 2 player neutral
-        sprite_sheets[0].subsurface((182, 38, 35, 37)),  # 3 player banking right 1
-        sprite_sheets[0].subsurface((222, 38, 35, 37)),  # 4 player banking right 2
-        sprite_sheets[0].subsurface((40, 147, 45, 37)),  # 5 green enemy
-        sprite_sheets[1].subsurface((0, 0, 6, 8)),  # 6 bullet
-        sprite_sheets[2].subsurface((0, 0, 8, 8)),  # 7 bullet-2
-        sprite_sheets[3].subsurface((0, 0, 8, 8)),  # 8 bullet-3
-        sprite_sheets[4].subsurface((0, 0, 32, 32)),  # 9 laser
-        sprite_sheets[5].subsurface((0, 0, 4, 32)),  # 10 laser-2
-        sprite_sheets[6].subsurface((0, 0, 11, 11)),  # 11 crosshair
-        sprite_sheets[7].subsurface((0, 0, 31, 31)),  # 12 crosshair-2
-        sprite_sheets[8].subsurface((0, 0, 16, 16)),  # 13 explosion frame 0
-        sprite_sheets[8].subsurface((16, 0, 16, 16)),  # 14 explosion frame 1
-        sprite_sheets[8].subsurface((0, 16, 16, 16)),  # 15 explosion frame 2
-        sprite_sheets[8].subsurface((16, 16, 16, 16)),  # 16 explosion frame 3
-        sprite_sheets[8].subsurface((0, 32, 16, 16)),  # 17 explosion frame 4
-        sprite_sheets[8].subsurface((16, 32, 16, 16)),  # 18 explosion frame 5
-    ]
-    scaled_sprites = [pygame.transform.scale2x(s) for s in cropped_sprites]
-    scaled_sprites[13:19] = [pygame.transform.scale2x(s) for s in scaled_sprites[13:19]]
-    # scaled_sprites = [pygame.transform.scale(s, (s.get_width() * 1.5, s.get_height() * 1.5)) for s in cropped_sprites]
-    # scaled_sprites = cropped_sprites[:]
-    return (cropped_sprites, scaled_sprites)
+from enemy import Enemy, EnemySpawner
+from engine import (
+    KeyboardTrajectoryProvider,
+    MouseTrajectoryProvider,
+    StraightTrajectoryProvider,
+    TrajectorySprite,
+)
+from item import PowerCapsule
+from player import Cannon, Player, Shield, Turret
+from surface_factory import SurfaceFactory
 
 
 class ShooterGame:
-    def __init__(self, screen: Surface, sprite_sheets: list[Surface]) -> None:
-        self.screen = screen
-        self.running = True
-        self.dt = 0.0
-        self.cropped_sprites, self.scaled_sprites = _crop_sprites(sprite_sheets)
-        self.player_pos = pygame.Vector2(
-            screen.get_width() / 2, screen.get_height() * 0.75
-        )
-        self.player_group = pygame.sprite.GroupSingle()
-        self.player = Player(self.scaled_sprites, self.player_group)
-        self.crosshair_group = pygame.sprite.GroupSingle()
-        self.crosshair = Crosshair([self.scaled_sprites[12]], self.crosshair_group)
-        self.bullet_group = pygame.sprite.RenderPlain()
-        self.bullet_factory = BulletFactory([self.scaled_sprites[10]])
-        self.turret_bullet_factory = TurretBulletFactory([self.scaled_sprites[7]])
+    def __init__(
+        self, size: tuple[int, int], scale_factor: float, asset_folders: list[str]
+    ) -> None:
+        self.scale_factor = scale_factor
+        self.screen = pygame.Surface(size)
+        self.factory = SurfaceFactory(asset_folders)
+        self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
+        self.bg = pygame.image.load("bg/nebula_288.png").convert()
+        self.bg.set_alpha(96)
+        self.player_group = pygame.sprite.RenderPlain()
+        self.crosshair_group = pygame.sprite.RenderPlain()
+        self.player_bullet_group = pygame.sprite.RenderPlain()
         self.enemy_group = pygame.sprite.RenderPlain()
-        self.enemy_factory_group = pygame.sprite.Group()
-        enemy.SquadronEnemyFactory(0.5, 1, 6, self.enemy_factory_group)
+        self.explosion_group = pygame.sprite.RenderPlain()
+        self.enemy_bullet_group = pygame.sprite.RenderPlain()
+        self.item_group = pygame.sprite.RenderPlain()
+        self._create_player()
+        self._create_crosshair()
+        self.score = 0
+        self.hi_score = 0
+        self.generator = self._main_loop()
+        next(self.generator)
+        self.menu_generator = self._render_menu()
+        next(self.menu_generator)
 
-    def create_explosion(self) -> Animation:
-        explosion = Animation(self.scaled_sprites[13:19], 0.01, False)
-        return explosion
+    def update(self, events: list[pygame.event.Event], dt: float) -> None:
+        self.generator.send((events, dt))
 
-    def process_frame(self, dt: float):
-        self.dt = dt
+    def _create_player(self) -> None:
+        boundary = self.screen.get_rect().copy()
+        boundary.update(10, 10, boundary.width - 20, boundary.height - 22)
+        keyboard = KeyboardTrajectoryProvider(boundary, boundary.center, 150.0, 180.0)
+        self.player = Player(
+            self.scale_factor, self.factory, keyboard, self.player_group
+        )
+        self.player.equip(
+            cannon=Cannon(self.factory, self.player_bullet_group),
+            turret=Turret(self.factory, self.player_bullet_group),
+            shield=Shield(),
+        )
 
-        if not any(sprite.alive() for sprite in self.enemy_factory_group):
-            enemy.ParallelEnemyFactory(
-                [
-                    enemy.CompositeEnemyFactory(
-                        [
-                            enemy.SquadronEnemyFactory(0.15, 5, 0),
-                            enemy.SquadronEnemyFactory(0.15, 5, 1),
-                            enemy.SquadronEnemyFactory(0.15, 5, 2),
-                            enemy.SquadronEnemyFactory(0.15, 5, 3),
-                        ]
-                    ),
-                    enemy.CompositeEnemyFactory(
-                        [
-                            enemy.SquadronEnemyFactory(0.5, 6, 4),
-                            enemy.SquadronEnemyFactory(0.5, 6, 5),
-                            enemy.SquadronEnemyFactory(0.5, 6, 6),
-                        ]
-                    ),
-                ],
-                self.enemy_factory_group,
+    def _create_crosshair(self) -> TrajectorySprite:
+        mouse = MouseTrajectoryProvider(
+            self.scale_factor, self.screen.get_rect().center
+        )
+        crosshair_anim = Animation.static(self.factory.surfaces["shots"][0])
+        return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
+
+    def _clean_up_oob_stuff(self) -> None:
+        for bullet in self.player_bullet_group:
+            if not self.screen.get_rect().colliderect(bullet.rect):
+                bullet.kill()
+        for bullet in self.enemy_bullet_group:
+            if not self.screen.get_rect().colliderect(bullet.rect):
+                bullet.kill()
+        for item in self.item_group:
+            if not self.screen.get_rect().colliderect(item.rect):
+                item.kill()
+
+    def _explode(self, sprite: TrajectorySprite, explosion_speed: float = 0.0):
+        frames = self.factory.surfaces["explosion"] + list(
+            reversed(self.factory.surfaces["explosion"])
+        )
+        sprite.set_animation(Animation(frames, 0.02))
+        sprite.on_animation_end(lambda s: s.kill())
+        sprite.trajectory_provider = StraightTrajectoryProvider(
+            start=sprite.rect.center,
+            end=None,
+            angle=sprite.angle,
+            speed=explosion_speed,
+        )
+        # Some chance of enemy dropping a power capsule
+        if isinstance(sprite, Enemy) and random.random() < 0.5:
+            random_angle = random.uniform(-45.0, 45.0)
+            PowerCapsule(
+                self.factory,
+                sprite.rect.center,
+                sprite.angle + random_angle,
+                self.item_group,
             )
 
-        self.player_group.update(self)
-        self.crosshair_group.update(self)
-        self.bullet_group.update(self)
-        self.enemy_group.update(self)
-        self.enemy_factory_group.update(self)
-
-        self.player_group.draw(self.screen)
-        self.crosshair_group.draw(self.screen)
-        self.bullet_group.draw(self.screen)
-        self.enemy_group.draw(self.screen)
-
-        collision_result = pygame.sprite.groupcollide(
-            self.bullet_group, self.enemy_group, True, False
+    def _check_bullet_collision(self) -> None:
+        # Check for collisions between bullets and enemies
+        enemy_collision_result = pygame.sprite.groupcollide(
+            self.player_bullet_group, self.enemy_group, True, False
         )
-        for kills in collision_result.values():
+        for kills in enemy_collision_result.values():
             for enemy_killed in kills:
-                enemy_killed.set_animation(self.create_explosion(), True)
+                self.score += 100
+                self._explode(enemy_killed, 40.0)
+                self.enemy_group.remove(enemy_killed)
+                self.explosion_group.add(enemy_killed)
+        # Check for collisions between bullets and player
+        player_collision_result = pygame.sprite.groupcollide(
+            self.player_group, self.enemy_bullet_group, False, True
+        )
+        # TODO Fix: if more than one bullet hits the player, we're counting only one hit
+        if player_collision_result:
+            if self.player.hit(10.0):  # bullet damage
+                self.player.controls_enabled = False
+                self._explode(self.player, 0.0)
+                self.player_group.remove(self.player)
+                self.explosion_group.add(self.player)
+                self.player = None
+        # Check for collisions between bullets and items
+        item_collision_result = pygame.sprite.groupcollide(
+            self.player_bullet_group, self.item_group, True, False
+        )
+        for kills in item_collision_result.values():
+            for item_killed in kills:
+                self.score += 50
+                self._explode(item_killed, 40.0)
+                self.item_group.remove(item_killed)
+                self.explosion_group.add(item_killed)
+        # TODO: Check for collisions between enemies and player
+
+    def _check_item_collision(self) -> None:
+        player_collision_result = pygame.sprite.groupcollide(
+            self.player_group, self.item_group, False, True
+        )
+        for player, items in player_collision_result.items():
+            for item in items:
+                if isinstance(item, PowerCapsule):
+                    player.power_source.charge_from(item)
+
+    def draw_score(self) -> None:
+        color = "white"
+        if self.score >= self.hi_score:
+            color = "yellow"
+        text = self.font.render(f"{self.score}", True, color)
+        coord = (self.screen.get_width() - text.get_width() - 5, 5)
+        self.screen.blit(text, coord)
+
+    def draw_hi_score(self) -> None:
+        text = self.font.render(f"{self.hi_score}", True, (255, 255, 255))
+        coord = ((self.screen.get_width() - text.get_width()) // 2, 5)
+        self.screen.blit(text, coord)
+
+    def _render_menu(self) -> Generator[None, float, None]:
+        mode = 1  # 0: blink, 1: show
+        text = self.font.render("Hit the space bar to start.", True, (255, 255, 255))
+        coord = (
+            self.screen.get_rect().centerx - text.get_width() // 2,
+            self.screen.get_rect().centery - text.get_height() // 2,
+        )
+        frame_count = 100
+        while True:
+            dt = yield
+            if mode == 1:
+                self.screen.blit(text, coord)
+                if frame_count <= 0:
+                    if random.randint(0, 10) < 4:
+                        mode = 0
+                        blink_timer = 0.1
+                    else:
+                        frame_count = 100
+            else:
+                mode = 0
+                blink_timer -= dt
+                if blink_timer <= 0.0:
+                    mode = 1
+                    frame_count = 100
+            frame_count -= 1
+            self.crosshair_group.update(dt)
+            self.crosshair_group.draw(self.screen)
+            self.draw_hi_score()
+
+    def _main_loop(self) -> Generator[None, float, None]:
+        enemy_spawner = EnemySpawner()
+        mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
+        while True:
+            events, dt = yield  # yields dt every time the game is updated
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(self.bg, (0, 0))
+            if mode == 0 or mode == 1:
+                self.menu_generator.send(dt)
+                for event in events:
+                    if (
+                        mode == 0
+                        and event.type == pygame.KEYDOWN
+                        and event.unicode == " "
+                    ):
+                        mode = 1
+                    elif (
+                        mode == 1
+                        and event.type == pygame.KEYUP
+                        and event.unicode == " "
+                    ):
+                        mode = 10
+            elif mode == 10 or mode == 20 or mode == 21:
+                enemy_spawner.update(self, dt)
+                self.explosion_group.update(dt)
+                self.enemy_group.update(dt)
+                self.player_group.update(dt)
+                self.crosshair_group.update(dt)
+                self.enemy_bullet_group.update(dt)
+                self.player_bullet_group.update(dt)
+                self.item_group.update(dt)
+                self.item_group.draw(self.screen)
+                self.enemy_group.draw(self.screen)
+                self.player_group.draw(self.screen)
+                self.crosshair_group.draw(self.screen)
+                self.player_bullet_group.draw(self.screen)
+                self.enemy_bullet_group.draw(self.screen)
+                self.explosion_group.draw(self.screen)
+                for player in self.player_group.sprites():
+                    player.draw_power_bar(self.screen)
+                self.draw_score()
+                self.draw_hi_score()
+                self._check_bullet_collision()
+                self._check_item_collision()
+                # Kill bullets that are out of bounds
+                self._clean_up_oob_stuff()
+                if (
+                    mode == 10
+                    and len(self.player_group) == 0
+                    and len(self.explosion_group) == 0
+                ):
+                    mode = 20
+                    game_over_timer = 10.0
+                if mode == 20 or mode == 21:
+                    text = self.font.render(
+                        "Game Over.",
+                        True,
+                        (255, 255, 255),
+                    )
+                    self.screen.blit(
+                        text,
+                        (
+                            self.screen.get_rect().centerx - text.get_width() // 2,
+                            self.screen.get_rect().centery - text.get_height() // 2,
+                        ),
+                    )
+                    for event in events:
+                        if (
+                            mode == 20
+                            and event.type == pygame.KEYDOWN
+                            and event.unicode == " "
+                        ):
+                            mode = 21
+                        elif (
+                            mode == 21
+                            and event.type == pygame.KEYUP
+                            and event.unicode == " "
+                        ):
+                            return
+                    game_over_timer -= dt
+                    if game_over_timer <= 0.0:
+                        return
+            if self.score > self.hi_score:
+                self.hi_score = self.score

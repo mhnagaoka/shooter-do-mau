@@ -1,58 +1,49 @@
-# Example file showing a circle moving on screen
+import asyncio
+import os
+
 import pygame
+
 from shooter_game import ShooterGame
 
-# pygame setup
-pygame.init()
-screen = pygame.display.set_mode((1080, 1080))
-pygame.display.set_caption("Shooter do Mau")
-pygame.mouse.set_visible(False)
-clock = pygame.time.Clock()
 
-sprite_sheet = pygame.image.load("assets/ships.png").convert_alpha()
-bullet_sheet = pygame.image.load("assets/bullet.png").convert_alpha()
-bullet2_sheet = pygame.image.load("assets/bullet-2.png").convert_alpha()
-bullet3_sheet = pygame.image.load("assets/bullet-3.png").convert_alpha()
-laser_sheet = pygame.image.load("assets/laser.png").convert_alpha()
-laser2_sheet = pygame.image.load("assets/laser-2.png").convert_alpha()
-crosshair_sheet = pygame.image.load("assets/crosshair.png").convert_alpha()
-crosshair2_sheet = pygame.image.load("assets/crosshair-2.png").convert_alpha()
-explosion_sheet = pygame.image.load("assets/explosion.png").convert_alpha()
-game = ShooterGame(
-    screen,
-    [
-        sprite_sheet,
-        bullet_sheet,
-        bullet2_sheet,
-        bullet3_sheet,
-        laser_sheet,
-        laser2_sheet,
-        crosshair_sheet,
-        crosshair2_sheet,
-        explosion_sheet,
-    ],
-)
-dt = 0
-running = True
+async def main():
+    pygame.init()
+    pygame.display.set_caption("Shooter do Mau")
+    pygame.mouse.set_visible(False)
 
-while running:
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
+    size = (288, 288)
+    display_size = (
+        round(size[0] * scale_factor),
+        round(size[1] * scale_factor),
+    )
+    display = pygame.display.set_mode(display_size)
+    clock = pygame.time.Clock()
+    running = True
+    game = ShooterGame(size, scale_factor, ["assets"])
+    display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
 
-    # fill the screen with a color to wipe away anything from last frame
-    screen.fill((50, 50, 50))
+    events = []
+    while running:
+        events.clear()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif (
+                event.type == pygame.KEYDOWN or event.type == pygame.KEYUP
+            ) and event.unicode == " ":
+                events.append(event)
 
-    game.process_frame(dt)
+        await asyncio.sleep(0)
+        dt = clock.tick(60) / 1000.0
+        try:
+            game.update(events, dt)
+        except StopIteration:
+            old = game
+            game = ShooterGame(size, scale_factor, ["assets"])
+            game.hi_score = old.hi_score
+        display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
+        pygame.display.flip()
 
-    # flip() the display to put your work on screen
-    pygame.display.flip()
 
-    # limits FPS to 60
-    # dt is delta time in seconds since last frame, used for framerate-
-    # independent physics.
-    dt = clock.tick(60) / 1000
-
-pygame.quit()
+asyncio.run(main())

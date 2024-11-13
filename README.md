@@ -42,28 +42,29 @@ Run the code.
 python main.py
 ```
 
+### Sprite showcase
+
+To see the rendered sprites and resulting animations, run the tool below.
+
+```sh
+python showcase.py
+```
+
 ### Spline tool
 
-There is a spline drawing tool that I (shamelessly) copied from
-[sk-Prime/simple_pygames](https://github.com/sk-Prime/simple_pygames) and slightly modified to print the
-BSpline's control points.
+This tool is used to generate splines for the enemy trajectories.
 
-This tool is used to create splines for enemy trajectories.
-
-Run it.
+To run it:
 
 ```sh
-python bspline.py
+python spline_tool.py
 ```
 
-Draw a spline (figure it out by yourself :wink:). The tool will print out the control points coordinates
-as an array of tuples on the console. For example:
+How to use it:
 
-```sh
-$ python bspline.py
-pygame 2.6.1 (SDL 2.28.4, Python 3.12.5)
-Hello from the pygame community. https://www.pygame.org/contribute.html
-[(306, 51), (574, 357)]
-[(306, 51), (574, 357), (584, 829)]
-[(306, 51), (574, 357), (584, 829), (337, 1062)]
-```
+- A: adds a spline control point
+- D: when hovering a control point, deletes it
+- mouse drag: drags a control point
+- I: creates an aditional control point between the hovered one and the next
+- H: show / hide spline drawing guides
+- Enter: draws a ship following a trajectory and prints the control points on the console

@@ -117,36 +117,36 @@ class ShooterGame:
     def _check_bullet_collision(self) -> None:
         # Check for collisions between bullets and enemies
         enemy_collision_result = pygame.sprite.groupcollide(
-            self.player_bullet_group, self.enemy_group, True, False
+            self.enemy_group, self.player_bullet_group, False, True
         )
-        for kills in enemy_collision_result.values():
-            for enemy_killed in kills:
-                self.score += 100
-                self._explode(enemy_killed, 40.0)
-                self.enemy_group.remove(enemy_killed)
-                self.explosion_group.add(enemy_killed)
+        for enemy_killed in enemy_collision_result.keys():
+            self.score += 100
+            self._explode(enemy_killed, 40.0)
+            self.enemy_group.remove(enemy_killed)
+            self.explosion_group.add(enemy_killed)
         # Check for collisions between bullets and player
         player_collision_result = pygame.sprite.groupcollide(
             self.player_group, self.enemy_bullet_group, False, True
         )
-        # TODO Fix: if more than one bullet hits the player, we're counting only one hit
+        # Multiple bullets may hit the player at the same time
         if player_collision_result:
-            if self.player.hit(10.0):  # bullet damage
-                self.player.controls_enabled = False
-                self._explode(self.player, 0.0)
-                self.player_group.remove(self.player)
-                self.explosion_group.add(self.player)
-                self.player = None
+            for bullets in player_collision_result.values():
+                for _ in bullets:
+                    if self.player.hit(10.0):  # bullet damage
+                        self.player.controls_enabled = False
+                        self._explode(self.player, 0.0)
+                        self.player_group.remove(self.player)
+                        self.explosion_group.add(self.player)
+                        self.player = None
         # Check for collisions between bullets and items
         item_collision_result = pygame.sprite.groupcollide(
-            self.player_bullet_group, self.item_group, True, False
+            self.item_group, self.player_bullet_group, False, True
         )
-        for kills in item_collision_result.values():
-            for item_killed in kills:
-                self.score += 50
-                self._explode(item_killed, 40.0)
-                self.item_group.remove(item_killed)
-                self.explosion_group.add(item_killed)
+        for item_hit in item_collision_result.keys():
+            self.score += 50
+            self._explode(item_hit, 40.0)
+            self.item_group.remove(item_hit)
+            self.explosion_group.add(item_hit)
         # TODO: Check for collisions between enemies and player
 
     def _check_item_collision(self) -> None:

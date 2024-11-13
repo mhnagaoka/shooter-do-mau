@@ -30,6 +30,10 @@ class Cannon:
     def update(self, dt: float) -> None:
         self.timer = max(self.timer - dt, 0.0)
 
+    def _fire(self, initial_pos: tuple[int, int]) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
     def shoot(self, initial_pos: tuple[int, int]) -> None:
         if self.timer > 0.0:
             return
@@ -39,7 +43,64 @@ class Cannon:
             return
         self.timer = self.refresh_time
         self.power_source.consume(self.power_consumption)
-        straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
+        self._fire(initial_pos)
+
+
+class FlakCannon(Cannon):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        super().__init__(factory, bullet_group, power_source)
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
+        self.refresh_time = 0.5
+        self.power_consumption = 20.0
+
+    def _fire(self, initial_pos: tuple[int, int]) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, -60, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, -120, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, -75, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, -105, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class TurboLaser(Cannon):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        super().__init__(factory, bullet_group, power_source)
+        self.refresh_time = 0.1
+        self.power_consumption = 2.0
+
+
+class Minigun(Cannon):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        super().__init__(factory, bullet_group, power_source)
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
+        self.refresh_time = 0.05
+        self.power_consumption = 5.0
+
+    def _fire(self, initial_pos: tuple[int, int]) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 

@@ -16,7 +16,7 @@ async def main():
     pygame.display.set_caption("Shooter do Mau")
     pygame.mouse.set_visible(False)
 
-    scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
+    scale_factor = float(os.getenv("SCALE_FACTOR", 1.0))
     size = (288, 288)
     display_size = (
         round(size[0] * scale_factor),

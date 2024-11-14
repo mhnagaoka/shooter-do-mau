@@ -132,7 +132,7 @@ class ShooterGame:
         if player_collision_result:
             for bullets in player_collision_result.values():
                 for _ in bullets:
-                    if self.player.hit(10.0):  # bullet damage
+                    if self.player and self.player.hit(10.0):  # bullet damage
                         self.player.controls_enabled = False
                         self._explode(self.player, 0.0)
                         self.player_group.remove(self.player)

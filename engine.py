@@ -29,7 +29,12 @@ class TrajectoryProvider:
 
 
 class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
-    def __init__(self, ctrlpoints: list[tuple[int, int]], initial_speed: float) -> None:
+    def __init__(
+        self,
+        ctrlpoints: list[tuple[int, int]],
+        initial_speed: float,
+        shift: float = 0.0,
+    ) -> None:
         super().__init__()
         self._ctrlpoints = ctrlpoints
         self._initial_speed = initial_speed
@@ -48,6 +53,7 @@ class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
         self._distance = 0
         self._position = ctrlpoints[0]
         self._angle = (end - begin).angle_to(Vector2(1, 0))
+        self.shift = shift
 
     def update(self, dt: float) -> None:
         self._distance += round(self._initial_speed * dt)
@@ -64,6 +70,11 @@ class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
                 break
 
     def get_current_position(self) -> tuple[int, int]:
+        if self.shift != 0.0:
+            return (
+                Vector2(self._position)
+                + Vector2(1, 0).rotate(90 + self._angle) * self.shift
+            )
         return self._position
 
     def get_current_angle(self) -> float:

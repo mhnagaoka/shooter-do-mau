@@ -56,7 +56,96 @@ class Cannon:
         ]
 
 
-class FlakCannon(Cannon):
+class TurboLaser(Cannon):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        super().__init__(factory, bullet_group, power_source)
+        self._upgrade_path = [
+            (0.1, 2.0),
+            (0.07, 1.5),
+            (0.05, 1.0),
+            (0.02, 0.5),
+        ]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
+
+
+class Turret:
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        self.bullet_group = bullet_group
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
+        self.timer = 0.0
+        self.power_source = power_source
+        self._upgrade_level = 0
+        self._upgrade_path = [(0.2, 10.0)]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
+
+    def update(self, dt: float) -> None:
+        self.timer = max(self.timer - dt, 0.0)
+
+    def upgrade(self) -> None:
+        self._upgrade_level = min(self._upgrade_level + 1, len(self._upgrade_path) - 1)
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
+
+    def shoot(self, initial_pos: tuple[int, int], direction: float) -> None:
+        if self.timer > 0.0:
+            return
+        if not self.power_source or not self.power_source.available(
+            self.power_consumption
+        ):
+            return
+        self.timer = self.refresh_time
+        self.power_source.consume(self.power_consumption)
+        self._fire(initial_pos, direction)
+
+    def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class Minigun(Turret):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        bullet_group: pygame.sprite.AbstractGroup,
+        power_source: "PowerSource" = None,
+    ) -> None:
+        super().__init__(factory, bullet_group, power_source)
+        self.bullet_anim = Animation.static(
+            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
+        )
+        self._upgrade_path = [
+            (0.05, 5.0),
+            (0.035, 1.5),
+            (0.025, 1.0),
+            (0.01, 0.5),
+        ]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
+
+    def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
+        straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+
+
+class FlakCannon(Turret):
     def __init__(
         self,
         factory: SurfaceFactory,
@@ -78,93 +167,16 @@ class FlakCannon(Cannon):
             self._upgrade_level
         ]
 
-    def _fire(self, initial_pos: tuple[int, int]) -> None:
-        straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-        straight = StraightTrajectoryProvider(initial_pos, None, -60, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-        straight = StraightTrajectoryProvider(initial_pos, None, -120, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-        straight = StraightTrajectoryProvider(initial_pos, None, -75, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-        straight = StraightTrajectoryProvider(initial_pos, None, -105, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-
-
-class TurboLaser(Cannon):
-    def __init__(
-        self,
-        factory: SurfaceFactory,
-        bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
-    ) -> None:
-        super().__init__(factory, bullet_group, power_source)
-        self._upgrade_path = [
-            (0.1, 2.0),
-            (0.07, 1.5),
-            (0.05, 1.0),
-            (0.02, 0.5),
-        ]
-        self.refresh_time, self.power_consumption = self._upgrade_path[
-            self._upgrade_level
-        ]
-
-
-class Minigun(Cannon):
-    def __init__(
-        self,
-        factory: SurfaceFactory,
-        bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
-    ) -> None:
-        super().__init__(factory, bullet_group, power_source)
-        self.bullet_anim = Animation.static(
-            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
-        )
-        self._upgrade_path = [
-            (0.05, 5.0),
-            (0.035, 1.5),
-            (0.025, 1.0),
-            (0.01, 0.5),
-        ]
-        self.refresh_time, self.power_consumption = self._upgrade_path[
-            self._upgrade_level
-        ]
-
-    def _fire(self, initial_pos: tuple[int, int]) -> None:
-        straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
-
-
-class Turret:
-    def __init__(
-        self,
-        factory: SurfaceFactory,
-        bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
-    ) -> None:
-        self.bullet_group = bullet_group
-        self.bullet_anim = Animation.static(
-            crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
-        )
-        self.refresh_time = 0.2
-        self.timer = 0.0
-        self.power_source = power_source
-        self.power_consumption = 10.0
-
-    def update(self, dt: float) -> None:
-        self.timer = max(self.timer - dt, 0.0)
-
-    def shoot(self, initial_pos: tuple[int, int], direction: float) -> None:
-        if self.timer > 0.0:
-            return
-        if not self.power_source or not self.power_source.available(
-            self.power_consumption
-        ):
-            return
-        self.timer = self.refresh_time
-        self.power_source.consume(self.power_consumption)
+    def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, direction - 15, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, direction + 15, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, direction - 30, 300.0)
+        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        straight = StraightTrajectoryProvider(initial_pos, None, direction + 30, 300.0)
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 
@@ -294,6 +306,10 @@ class Player(TrajectorySprite):
     @property
     def cannon(self) -> Cannon:
         return self._cannon
+
+    @property
+    def turret(self) -> Turret:
+        return self._turret
 
     def hit(self, damage: float) -> bool:
         if self._shield is not None and self._shield.absorb(damage):

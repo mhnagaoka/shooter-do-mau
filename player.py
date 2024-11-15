@@ -68,11 +68,38 @@ class TurboLaser(Cannon):
             (0.1, 2.0),
             (0.07, 1.5),
             (0.05, 1.0),
-            (0.02, 0.5),
+            (0.05, 0.5),
+            (0.05, 0.5),
+            (0.05, 0.5),
         ]
         self.refresh_time, self.power_consumption = self._upgrade_path[
             self._upgrade_level
         ]
+        self._wing_cannon = False
+
+    def _fire(self, initial_pos: tuple[int, int]) -> None:
+        if self._upgrade_level <= 3:
+            straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
+            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        if self._upgrade_level == 4:
+            if self._wing_cannon:
+                x, y = initial_pos
+                straight = StraightTrajectoryProvider((x - 8, y), None, -90.0, 600.0)
+                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+                straight = StraightTrajectoryProvider((x + 8, y), None, -90.0, 600.0)
+                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            else:
+                straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
+                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            self._wing_cannon = not self._wing_cannon
+        if self._upgrade_level > 4:
+            x, y = initial_pos
+            straight = StraightTrajectoryProvider((x - 8, y), None, -90.0, 600.0)
+            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            straight = StraightTrajectoryProvider((x + 8, y), None, -90.0, 600.0)
+            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
+            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
 
 class Turret:

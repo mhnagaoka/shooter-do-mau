@@ -10,6 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get the build information
+        id: build_info
+        uses: chuhlomin/render-template@v1
+        with:
+          template: build_info.py
+          vars: |
+            build_info: ${{ github.sha }} ${{ github.run_number }}
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 

@@ -55,9 +55,6 @@ class ShooterGame:
         )
         self.player.equip(
             cannon=Cannon(self.factory, self.player_bullet_group),
-            # cannon=FlakCannon(self.factory, self.player_bullet_group),
-            # cannon=TurboLaser(self.factory, self.player_bullet_group),
-            # cannon=Minigun(self.factory, self.player_bullet_group),
             turret=Turret(self.factory, self.player_bullet_group),
             shield=Shield(),
         )
@@ -95,8 +92,7 @@ class ShooterGame:
         # Some chance of enemy dropping a power capsule
         if isinstance(sprite, RedEnemy):
             random_angle = random.uniform(-45.0, 45.0)
-            # items = [item.PowerCapsule, item.Minigun, item.FlakCannon, item.TurboLaser]
-            items = [item.Minigun]
+            items = [item.PowerCapsule, item.Minigun, item.FlakCannon, item.TurboLaser]
             constructor = random.choice(items)
             _item = constructor(
                 self.factory,

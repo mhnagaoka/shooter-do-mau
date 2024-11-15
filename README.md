@@ -2,6 +2,8 @@
 
 Space shooter written in Python and Pygame.
 
+[![Shooter do Mau gameplay](http://i.ytimg.com/vi/GGLS71Fwk94/hqdefault.jpg)](https://www.youtube.com/watch?v=GGLS71Fwk94)
+
 ## Installing and running
 
 > [!NOTE]

@@ -1,3 +1,4 @@
+from enum import Flag, auto
 from typing import TYPE_CHECKING, Generator
 
 import pygame
@@ -207,6 +208,27 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
         return False
 
 
+class Direction(Flag):
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    CW = auto()
+    CCW = auto()
+
+
+type Keybindings = dict[int, Direction]
+
+default_keybindings: Keybindings = {
+    pygame.K_UP: Direction.UP,
+    pygame.K_DOWN: Direction.DOWN,
+    pygame.K_LEFT: Direction.LEFT,
+    pygame.K_RIGHT: Direction.RIGHT,
+    pygame.K_PAGEUP: Direction.CCW,
+    pygame.K_PAGEDOWN: Direction.CW,
+}
+
+
 class KeyboardTrajectoryProvider(TrajectoryProvider):
     def __init__(
         self,
@@ -214,35 +236,47 @@ class KeyboardTrajectoryProvider(TrajectoryProvider):
         initial_position: tuple[int, int],
         initial_speed: float,
         initial_rotation_speed: float,
+        keybindings: Keybindings = default_keybindings,
     ) -> None:
         self.boundary = boundary
         self.position = Vector2(initial_position)
         self.angle = 0.0
         self.speed = initial_speed
         self.rotation_speed = initial_rotation_speed
+        self.keybindings = keybindings
 
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_UP]:
-            self.position.y -= self.speed * dt
-            if self.position.y < self.boundary.top:
-                self.position.y = self.boundary.top
-        if keys[pygame.K_DOWN]:
-            self.position.y += self.speed * dt
-            if self.position.y > self.boundary.bottom:
-                self.position.y = self.boundary.bottom
-        if keys[pygame.K_LEFT]:
-            self.position.x -= self.speed * dt
+        dir_flags = Direction(0)
+        for key, direction in self.keybindings.items():
+            if keys[key]:
+                dir_flags |= direction
+        # Translation
+        translation = Vector2(0, 0)
+        if dir_flags & Direction.UP:
+            translation = translation + Vector2(0, -1)
+        if dir_flags & Direction.DOWN:
+            translation = translation + Vector2(0, 1)
+        if dir_flags & Direction.LEFT:
+            translation = translation + Vector2(-1, 0)
+        if dir_flags & Direction.RIGHT:
+            translation = translation + Vector2(1, 0)
+        if translation.length() > 0:
+            translation.normalize_ip()
+            self.position += translation * self.speed * dt
             if self.position.x < self.boundary.left:
                 self.position.x = self.boundary.left
-        if keys[pygame.K_RIGHT]:
-            self.position.x += self.speed * dt
-            if self.position.x > self.boundary.right:
+            elif self.position.x > self.boundary.right:
                 self.position.x = self.boundary.right
-        if keys[pygame.K_PAGEUP]:
-            self.angle -= self.rotation_speed * dt
-        if keys[pygame.K_PAGEDOWN]:
+            if self.position.y < self.boundary.top:
+                self.position.y = self.boundary.top
+            elif self.position.y > self.boundary.bottom:
+                self.position.y = self.boundary.bottom
+        # Rotation
+        if dir_flags & Direction.CW:
             self.angle += self.rotation_speed * dt
+        if dir_flags & Direction.CCW:
+            self.angle -= self.rotation_speed * dt
 
     def get_current_position(self) -> tuple[int, int]:
         return (int(self.position.x), int(self.position.y))

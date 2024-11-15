@@ -4,6 +4,7 @@ from typing import Generator
 import pygame
 import pygame.event
 
+import item
 from animation import Animation
 from enemy import Enemy, EnemySpawner, RedEnemy
 from engine import (
@@ -11,19 +12,25 @@ from engine import (
     MouseTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectorySprite,
+    Keybindings,
+    default_keybindings,
 )
-import item
-from player import Cannon, FlakCannon, Minigun, Player, Shield, Turret, TurboLaser
+from player import Cannon, FlakCannon, Minigun, Player, Shield, TurboLaser, Turret
 from surface_factory import SurfaceFactory
 
 
 class ShooterGame:
     def __init__(
-        self, size: tuple[int, int], scale_factor: float, asset_folders: list[str]
+        self,
+        size: tuple[int, int],
+        scale_factor: float,
+        asset_folders: list[str],
+        keybindings: Keybindings = default_keybindings,
     ) -> None:
         self.scale_factor = scale_factor
         self.screen = pygame.Surface(size)
         self.factory = SurfaceFactory(asset_folders)
+        self.keybindings = keybindings
         self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
         self.bg = pygame.image.load("bg/nebula_288.png").convert()
         self.bg.set_alpha(96)
@@ -49,7 +56,9 @@ class ShooterGame:
     def _create_player(self) -> None:
         boundary = self.screen.get_rect().copy()
         boundary.update(10, 10, boundary.width - 20, boundary.height - 22)
-        keyboard = KeyboardTrajectoryProvider(boundary, boundary.center, 150.0, 180.0)
+        keyboard = KeyboardTrajectoryProvider(
+            boundary, boundary.center, 150.0, 180.0, self.keybindings
+        )
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )

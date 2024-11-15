@@ -6,6 +6,7 @@ import sys
 import pygame
 
 from shooter_game import ShooterGame
+import engine
 
 
 async def main():
@@ -25,7 +26,13 @@ async def main():
     display = pygame.display.set_mode(display_size)
     clock = pygame.time.Clock()
     running = True
-    game = ShooterGame(size, scale_factor, ["assets"])
+    keybindings: engine.Keybindings = engine.default_keybindings | {
+        pygame.K_w: engine.Direction.UP,
+        pygame.K_a: engine.Direction.LEFT,
+        pygame.K_s: engine.Direction.DOWN,
+        pygame.K_d: engine.Direction.RIGHT,
+    }
+    game = ShooterGame(size, scale_factor, ["assets"], keybindings)
     display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
 
     events = []
@@ -45,7 +52,7 @@ async def main():
             game.update(events, dt)
         except StopIteration:
             old = game
-            game = ShooterGame(size, scale_factor, ["assets"])
+            game = ShooterGame(size, scale_factor, ["assets"], keybindings)
             game.hi_score = old.hi_score
         display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
         pygame.display.flip()

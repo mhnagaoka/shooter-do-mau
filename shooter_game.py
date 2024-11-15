@@ -57,7 +57,7 @@ class ShooterGame:
         boundary = self.screen.get_rect().copy()
         boundary.update(10, 10, boundary.width - 20, boundary.height - 22)
         keyboard = KeyboardTrajectoryProvider(
-            boundary, boundary.center, 150.0, 180.0, self.keybindings
+            boundary, boundary.center, 150.0, 0.0, self.keybindings
         )
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group

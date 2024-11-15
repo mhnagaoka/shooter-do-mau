@@ -330,12 +330,12 @@ class EnemySpawner:
             insect_spawn_timer -= dt
             if mode == 0 and len(game.enemy_group) == 0:
                 self._wave_count += 1
-                difficulty = min(self._wave_count / 10, 1.0)
+                difficulty = min(self._wave_count / 20, 1.0)
                 mode = 2
                 ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
-                insect_speed = pygame.math.lerp(50.0, 150.0, difficulty)
-                insect_spawn_timer = 20 / insect_speed  # type to fly 20 px
-                insect_shot_speed = pygame.math.lerp(80.0, 180.0, difficulty)
+                insect_speed = pygame.math.lerp(50.0, 120.0, difficulty)
+                insect_spawn_timer = 20 / insect_speed  # time to fly 20 px
+                insect_shot_speed = pygame.math.lerp(80.0, 160.0, difficulty)
                 cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty)
                 double_squadron = self._wave_count > 10
                 squadron_size = round(

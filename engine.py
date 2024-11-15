@@ -29,6 +29,22 @@ class TrajectoryProvider:
         pass
 
 
+class StaticTrajectoryProvider(TrajectoryProvider):
+    def __init__(self, position: tuple[int, int], angle: float) -> None:
+        super().__init__()
+        self._position = position
+        self._angle = angle
+
+    def get_current_position(self) -> tuple[int, int]:
+        return self._position
+
+    def get_current_angle(self) -> float:
+        return self._angle
+
+    def is_finished(self) -> bool:
+        return False
+
+
 class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
     def __init__(
         self,
@@ -170,10 +186,16 @@ class PredefinedTrajectoryProvider(TrajectoryProvider):
 
 class SeekingTrajectoryProvider(TrajectoryProvider):
     def __init__(
-        self, start: tuple[int, int], angle: float, speed: float, mark: Sprite
+        self,
+        start: tuple[int, int],
+        angle: float,
+        speed: float,
+        angular_speed: float,
+        mark: Sprite,
     ):
         self.start = start
         self.speed = speed
+        self.angular_speed = angular_speed
         self.angle = angle
         self.mark = mark
         self.position = Vector2(start)
@@ -189,7 +211,7 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
                 diff_angle -= 360.0
             elif diff_angle < -180.0:
                 diff_angle += 360.0
-            max_diff = 1.0
+            max_diff = self.angular_speed
             if diff_angle > max_diff:
                 new_angle = self.angle + max_diff
             elif diff_angle < -max_diff:

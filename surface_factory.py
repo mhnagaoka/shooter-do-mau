@@ -118,6 +118,10 @@ class SurfaceFactory:
             png_files = [f for f in files if f.endswith(".png")]
             for name in png_files:
                 key = os.path.basename(name)[0:-4]
+                dim = (16, 16)
+                if key.endswith("_32"):
+                    key = key[0:-3]
+                    dim = (32, 32)
                 image = pygame.image.load(name).convert_alpha()
                 self.raw_surfaces[key] = image
-                self.surfaces[key] = list(slice_image(image, 16, 16))
+                self.surfaces[key] = list(slice_image(image, *dim))

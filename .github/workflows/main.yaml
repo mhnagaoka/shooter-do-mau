@@ -15,6 +15,7 @@ jobs:
         uses: chuhlomin/render-template@v1
         with:
           template: build_info.py
+          result_path: build_info.py
           vars: |
             build_info: ${{ github.sha }} ${{ github.run_number }}
 

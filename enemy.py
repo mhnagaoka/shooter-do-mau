@@ -64,7 +64,11 @@ class RedEnemy(Enemy):
         # straight = StraightTrajectoryProvider(initial_pos, None, direction, 150.0)
         # TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
         seeking = SeekingTrajectoryProvider(
-            initial_pos, self.trajectory_provider.get_current_angle(), 150.0, player
+            initial_pos,
+            self.trajectory_provider.get_current_angle(),
+            150.0,
+            1.0,
+            player,
         )
         TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
 
@@ -129,6 +133,83 @@ class InsectEnemy(Enemy):
                     cannon_timer = self.cannon_timer
                 else:
                     cannon_timer = max(cannon_timer - dt, 0.0)
+
+
+class Brain(Enemy):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        player_group: pygame.sprite.AbstractGroup,
+        bullet_group: pygame.sprite.AbstractGroup,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.neutral_anim = Animation(factory.surfaces["brain-1"], 0.1, loop=True)
+        super().__init__(self.neutral_anim, 90.0, trajectory, *groups)
+        self.player_group = player_group
+        self.bullet_group = bullet_group
+        # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
+        missile_surfaces = [crop(s, 6, 4, 3, 8) for s in factory.surfaces["missile"]]
+        self.bullet_anim = Animation(missile_surfaces, 0.05, loop=True)
+        self.generator = self._main_loop()
+        next(self.generator)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        self.generator.send(dt)
+
+    # TODO Do we need the player argument? We have the player group already
+    def shoot(self) -> None:
+        if not self.player_group:
+            return
+        player = self.player_group.sprites()[0]
+        initial_pos = self.rect.center
+        direction = -pygame.Vector2(
+            player.rect.center[0] - initial_pos[0],
+            player.rect.center[1] - initial_pos[1],
+        ).angle_to(pygame.Vector2(1, 0))
+        normal = pygame.Vector2(1, 0).rotate(direction).rotate(90)
+        base = pygame.Vector2(self.rect.center)
+        missile_pos = (base + normal * 12, base - normal * 12)
+
+        angle_error = random.uniform(-10.0, 10.0)
+        direction += angle_error
+        seeking = SeekingTrajectoryProvider(
+            (missile_pos[0].x, missile_pos[0].y),
+            self.trajectory_provider.get_current_angle(),
+            150.0,
+            1.0,
+            player,
+        )
+        TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
+        seeking = SeekingTrajectoryProvider(
+            (missile_pos[1].x, missile_pos[1].y),
+            self.trajectory_provider.get_current_angle(),
+            150.0,
+            1.0,
+            player,
+        )
+        TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
+
+    def _main_loop(self) -> typing.Generator[None, float, None]:
+        cannon_timer = 0.1
+        dt: float = 0.0
+        while True:
+            while cannon_timer > 0.0:
+                cannon_timer -= dt
+                dt = yield
+            self.shoot()
+            cannon_timer = 0.1
+            while cannon_timer > 0.0:
+                cannon_timer -= dt
+                dt = yield
+            self.shoot()
+            cannon_timer = 0.1
+            while cannon_timer > 0.0:
+                cannon_timer -= dt
+                dt = yield
+            self.shoot()
+            cannon_timer = 0.75
 
 
 class EnemySpawner:
@@ -324,29 +405,34 @@ class EnemySpawner:
         double_squadron = False
         insect_spawn_timer = 0.4
         self._wave_count = -1
+        game: "ShooterGame"
+        dt: float
         while True:
-            arg: tuple["ShooterGame", float] = yield
-            game, dt = arg
+            game, dt = yield
             insect_spawn_timer -= dt
             if mode == 0 and len(game.enemy_group) == 0:
-                self._wave_count += 1
-                difficulty = min(self._wave_count / 20, 1.0)
-                mode = 2
-                ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
-                insect_speed = pygame.math.lerp(50.0, 120.0, difficulty)
-                insect_spawn_timer = 20 / insect_speed  # time to fly 20 px
-                insect_shot_speed = pygame.math.lerp(80.0, 160.0, difficulty)
-                cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty)
-                double_squadron = self._wave_count > 10
-                squadron_size = round(
-                    pygame.math.lerp(
-                        5, 15, min(max(0, self._wave_count - 10) / 20, 1.0)
+                if self.wave_count > 0 and self._wave_count % 10 == 0:
+                    self._wave_count += 1
+                    mode = 3
+                else:
+                    self._wave_count += 1
+                    difficulty = min(self._wave_count / 20, 1.0)
+                    mode = 2
+                    ctrlpoints = trajectories[random.randint(0, len(trajectories) - 1)]
+                    insect_speed = pygame.math.lerp(50.0, 120.0, difficulty)
+                    insect_spawn_timer = 20 / insect_speed  # time to fly 20 px
+                    insect_shot_speed = pygame.math.lerp(80.0, 160.0, difficulty)
+                    cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty)
+                    double_squadron = self._wave_count > 10
+                    squadron_size = round(
+                        pygame.math.lerp(
+                            5, 15, min(max(0, self._wave_count - 10) / 20, 1.0)
+                        )
                     )
-                )
-                insect_type = random.randint(
-                    0, len(game.factory.surfaces["insect-enemies"]) - 1
-                )
-            if mode == 1:
+                    insect_type = random.randint(
+                        0, len(game.factory.surfaces["insect-enemies"]) - 1
+                    )
+            if mode == 1:  # insect
                 if spawn_count < squadron_size:
                     if insect_spawn_timer <= 0.0:
                         if not double_squadron:
@@ -384,7 +470,7 @@ class EnemySpawner:
                 else:
                     mode = 0
                     spawn_count = 0
-            if mode == 2:
+            if mode == 2:  # red enemy
                 # TODO Fix magic number
                 off_screen_offset = 10
                 screen_rect = game.screen.get_rect()
@@ -415,3 +501,36 @@ class EnemySpawner:
                     game.enemy_group,
                 ).on_trajectory_end(lambda s: s.kill())
                 mode = 1
+            if mode == 3:  # boss
+                # Spawn boss
+                trajectory = SeekingTrajectoryProvider(
+                    (20, -20), 0, 20.0, 2.0, game.player
+                )
+                Brain(
+                    game.factory,
+                    trajectory,
+                    game.player_group,
+                    game.enemy_bullet_group,
+                    game.enemy_group,
+                )
+                trajectory = SeekingTrajectoryProvider(
+                    (144, 288), 0, 20.0, 2.0, game.player
+                )
+                Brain(
+                    game.factory,
+                    trajectory,
+                    game.player_group,
+                    game.enemy_bullet_group,
+                    game.enemy_group,
+                )
+                trajectory = SeekingTrajectoryProvider(
+                    (268, -20), 0, 20.0, 2.0, game.player
+                )
+                Brain(
+                    game.factory,
+                    trajectory,
+                    game.player_group,
+                    game.enemy_bullet_group,
+                    game.enemy_group,
+                )
+                mode = 0

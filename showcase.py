@@ -74,7 +74,7 @@ def render_all(
 if __name__ == "__main__":
     scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
     pygame.init()
-    screen = pygame.Surface((288, 288))
+    screen = pygame.Surface((576, 576))
     display = pygame.display.set_mode(
         (
             round(screen.get_width() * scale_factor),

@@ -22,10 +22,14 @@ class Cannon:
         self.bullet_anim = Animation.static(
             crop(factory.surfaces["shots"][2], 7, 0, 2, 8)
         )
-        self.refresh_time = 0.25
         self.timer = 0.0
         self.power_source = power_source
         self.power_consumption = 10.0
+        self._upgrade_level = 0
+        self._upgrade_path = [(0.25, 10.0)]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
 
     def update(self, dt: float) -> None:
         self.timer = max(self.timer - dt, 0.0)
@@ -45,6 +49,12 @@ class Cannon:
         self.power_source.consume(self.power_consumption)
         self._fire(initial_pos)
 
+    def upgrade(self) -> None:
+        self._upgrade_level = min(self._upgrade_level + 1, len(self._upgrade_path) - 1)
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
+
 
 class FlakCannon(Cannon):
     def __init__(
@@ -57,8 +67,16 @@ class FlakCannon(Cannon):
         self.bullet_anim = Animation.static(
             crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
         )
-        self.refresh_time = 0.5
-        self.power_consumption = 20.0
+        self._upgrade_path = [
+            (0.5, 20.0),
+            (0.3, 15.0),
+            (0.2, 10.0),
+            (0.2, 5.0),
+            (0.2, 2.5),
+        ]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
 
     def _fire(self, initial_pos: tuple[int, int]) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
@@ -81,8 +99,15 @@ class TurboLaser(Cannon):
         power_source: "PowerSource" = None,
     ) -> None:
         super().__init__(factory, bullet_group, power_source)
-        self.refresh_time = 0.1
-        self.power_consumption = 2.0
+        self._upgrade_path = [
+            (0.1, 2.0),
+            (0.07, 1.5),
+            (0.05, 1.0),
+            (0.02, 0.5),
+        ]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
 
 
 class Minigun(Cannon):
@@ -96,8 +121,15 @@ class Minigun(Cannon):
         self.bullet_anim = Animation.static(
             crop(factory.surfaces["shots"][1], 7, 7, 2, 2)
         )
-        self.refresh_time = 0.05
-        self.power_consumption = 5.0
+        self._upgrade_path = [
+            (0.05, 5.0),
+            (0.035, 1.5),
+            (0.025, 1.0),
+            (0.01, 0.5),
+        ]
+        self.refresh_time, self.power_consumption = self._upgrade_path[
+            self._upgrade_level
+        ]
 
     def _fire(self, initial_pos: tuple[int, int]) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, -90, 300.0)
@@ -258,6 +290,10 @@ class Player(TrajectorySprite):
         if shield is not None:
             shield.power_source = self.power_source
             self._shield = shield
+
+    @property
+    def cannon(self) -> Cannon:
+        return self._cannon
 
     def hit(self, damage: float) -> bool:
         if self._shield is not None and self._shield.absorb(damage):

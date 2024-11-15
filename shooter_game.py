@@ -159,15 +159,27 @@ class ShooterGame:
                 if isinstance(_item, item.PowerCapsule):
                     player.power_source.charge_from(_item)
                 elif isinstance(_item, item.Minigun):
-                    player.equip(cannon=Minigun(self.factory, self.player_bullet_group))
+                    player.cannon.upgrade()
+                    if player.cannon is None or not isinstance(player.cannon, Minigun):
+                        player.equip(
+                            cannon=Minigun(self.factory, self.player_bullet_group)
+                        )
                 elif isinstance(_item, item.FlakCannon):
-                    player.equip(
-                        cannon=FlakCannon(self.factory, self.player_bullet_group)
-                    )
+                    player.cannon.upgrade()
+                    if player.cannon is None or not isinstance(
+                        player.cannon, FlakCannon
+                    ):
+                        player.equip(
+                            cannon=FlakCannon(self.factory, self.player_bullet_group)
+                        )
                 elif isinstance(_item, item.TurboLaser):
-                    player.equip(
-                        cannon=TurboLaser(self.factory, self.player_bullet_group)
-                    )
+                    player.cannon.upgrade()
+                    if player.cannon is None or not isinstance(
+                        player.cannon, TurboLaser
+                    ):
+                        player.equip(
+                            cannon=TurboLaser(self.factory, self.player_bullet_group)
+                        )
 
     def draw_wave_count(self, wave_count: int) -> None:
         text = self.font.render(f"{wave_count}", True, (255, 255, 255))

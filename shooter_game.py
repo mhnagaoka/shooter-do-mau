@@ -101,7 +101,13 @@ class ShooterGame:
         # Some chance of enemy dropping a power capsule
         if isinstance(sprite, RedEnemy):
             random_angle = random.uniform(-45.0, 45.0)
-            items = [item.PowerCapsule, item.Minigun, item.FlakCannon, item.TurboLaser]
+            items = [
+                item.PowerCapsule,
+                item.Minigun,
+                item.FlakCannon,
+                item.TurboLaser,
+                item.TurboLaser,
+            ]
             constructor = random.choice(items)
             _item = constructor(
                 self.factory,

@@ -1,4 +1,3 @@
-from math import floor
 import random
 import typing
 
@@ -6,14 +5,14 @@ import pygame
 
 from animation import Animation
 from engine import (
-    SeekingTrajectoryProvider,
     LinearSegmentsTrajectoryProvider,
+    SeekingTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectoryProvider,
     TrajectorySprite,
 )
 from player import Player
-from surface_factory import SurfaceFactory, crop, trim
+from surface_factory import SurfaceFactory, crop
 
 if typing.TYPE_CHECKING:
     from shooter_game import ShooterGame
@@ -145,6 +144,36 @@ class EnemySpawner:
     def update(self, game: "ShooterGame", dt: float) -> None:
         self.generator.send((game, dt))
 
+    def _create_insect_enemy(
+        self,
+        game: "ShooterGame",
+        type: int,
+        shot_speed: float,
+        insect_canon_timer: float,
+        ctrlpoints: list[tuple[int, int]],
+        speed: float,
+        shift: float,
+    ) -> None:
+        provider = LinearSegmentsTrajectoryProvider(ctrlpoints, speed, shift)
+        insect_enemy = (
+            InsectEnemy(
+                game.factory,
+                provider,
+                game.player_group,
+                game.enemy_bullet_group,
+                game.enemy_group,
+            )
+            .on_trajectory_end(lambda s: s.kill())
+            .set_animation(
+                Animation.static(
+                    game.factory.surfaces["insect-enemies"][type],
+                ),
+                None,
+            )
+        )
+        insect_enemy.shot_speed = shot_speed
+        insect_enemy.cannon_timer = insect_canon_timer
+
     def _main_loop(self) -> typing.Generator[None, float, None]:
         trajectories = [
             [
@@ -175,32 +204,28 @@ class EnemySpawner:
                     ]
                 )
             ),
-            (
-                [
-                    (42, -10),
-                    (42, 123),
-                    (52, 140),
-                    (72, 149),
-                    (228, 149),
-                    (241, 141),
-                    (245, 124),
-                    (245, -10),
-                ]
-            ),
-            (
-                list(
-                    reversed(
-                        [
-                            (42, -10),
-                            (42, 123),
-                            (52, 140),
-                            (72, 149),
-                            (228, 149),
-                            (241, 141),
-                            (245, 124),
-                            (245, -10),
-                        ]
-                    )
+            [
+                (42, -10),
+                (42, 123),
+                (52, 140),
+                (72, 149),
+                (228, 149),
+                (241, 141),
+                (245, 124),
+                (245, -10),
+            ],
+            list(
+                reversed(
+                    [
+                        (42, -10),
+                        (42, 123),
+                        (52, 140),
+                        (72, 149),
+                        (228, 149),
+                        (241, 141),
+                        (245, 124),
+                        (245, -10),
+                    ]
                 )
             ),
             [
@@ -296,6 +321,7 @@ class EnemySpawner:
         mode = 0  # 0 = idle, 1 = spawning
         spawn_count = 0
         squadron_size = 5
+        double_squadron = False
         insect_spawn_timer = 0.4
         self._wave_count = -1
         while True:
@@ -311,35 +337,48 @@ class EnemySpawner:
                 insect_spawn_timer = 20 / insect_speed  # type to fly 20 px
                 insect_shot_speed = pygame.math.lerp(80.0, 180.0, difficulty)
                 cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty)
+                double_squadron = self._wave_count > 10
+                squadron_size = round(
+                    pygame.math.lerp(
+                        5, 15, min(max(0, self._wave_count - 10) / 20, 1.0)
+                    )
+                )
                 insect_type = random.randint(
                     0, len(game.factory.surfaces["insect-enemies"]) - 1
                 )
             if mode == 1:
                 if spawn_count < squadron_size:
                     if insect_spawn_timer <= 0.0:
-                        provider = LinearSegmentsTrajectoryProvider(
-                            ctrlpoints, insect_speed
-                        )
-                        insect_enemy = (
-                            InsectEnemy(
-                                game.factory,
-                                provider,
-                                game.player_group,
-                                game.enemy_bullet_group,
-                                game.enemy_group,
+                        if not double_squadron:
+                            self._create_insect_enemy(
+                                game,
+                                insect_type,
+                                insect_shot_speed,
+                                cannon_timer,
+                                ctrlpoints,
+                                insect_speed,
+                                0.0,
                             )
-                            .on_trajectory_end(lambda s: s.kill())
-                            .set_animation(
-                                Animation.static(
-                                    game.factory.surfaces["insect-enemies"][
-                                        insect_type
-                                    ],
-                                ),
-                                None,
+                        else:
+                            self._create_insect_enemy(
+                                game,
+                                insect_type,
+                                insect_shot_speed,
+                                cannon_timer,
+                                ctrlpoints,
+                                insect_speed,
+                                -8.0,
                             )
-                        )
-                        insect_enemy.shot_speed = insect_shot_speed
-                        insect_enemy.cannon_timer = cannon_timer
+                            self._create_insect_enemy(
+                                game,
+                                insect_type,
+                                insect_shot_speed,
+                                cannon_timer,
+                                ctrlpoints,
+                                insect_speed,
+                                8.0,
+                            )
+
                         insect_spawn_timer = 20 / insect_speed  # type to fly 20 px
                         spawn_count += 1
                 else:

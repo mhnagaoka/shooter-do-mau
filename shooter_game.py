@@ -55,9 +55,6 @@ class ShooterGame:
         )
         self.player.equip(
             cannon=Cannon(self.factory, self.player_bullet_group),
-            # cannon=FlakCannon(self.factory, self.player_bullet_group),
-            # cannon=TurboLaser(self.factory, self.player_bullet_group),
-            # cannon=Minigun(self.factory, self.player_bullet_group),
             turret=Turret(self.factory, self.player_bullet_group),
             shield=Shield(),
         )
@@ -132,7 +129,7 @@ class ShooterGame:
         if player_collision_result:
             for bullets in player_collision_result.values():
                 for _ in bullets:
-                    if self.player.hit(10.0):  # bullet damage
+                    if self.player and self.player.hit(10.0):  # bullet damage
                         self.player.controls_enabled = False
                         self._explode(self.player, 0.0)
                         self.player_group.remove(self.player)
@@ -153,21 +150,34 @@ class ShooterGame:
         player_collision_result = pygame.sprite.groupcollide(
             self.player_group, self.item_group, False, True
         )
+        player: Player
         for player, items in player_collision_result.items():
             for _item in items:
                 # TODO: Ugly code, refactor
                 if isinstance(_item, item.PowerCapsule):
                     player.power_source.charge_from(_item)
-                elif isinstance(_item, item.Minigun):
-                    player.equip(cannon=Minigun(self.factory, self.player_bullet_group))
-                elif isinstance(_item, item.FlakCannon):
-                    player.equip(
-                        cannon=FlakCannon(self.factory, self.player_bullet_group)
-                    )
                 elif isinstance(_item, item.TurboLaser):
-                    player.equip(
-                        cannon=TurboLaser(self.factory, self.player_bullet_group)
-                    )
+                    player.cannon.upgrade()
+                    if player.cannon is None or not isinstance(
+                        player.cannon, TurboLaser
+                    ):
+                        player.equip(
+                            cannon=TurboLaser(self.factory, self.player_bullet_group)
+                        )
+                elif isinstance(_item, item.FlakCannon):
+                    player.turret.upgrade()
+                    if player.turret is None or not isinstance(
+                        player.turret, FlakCannon
+                    ):
+                        player.equip(
+                            turret=FlakCannon(self.factory, self.player_bullet_group)
+                        )
+                elif isinstance(_item, item.Minigun):
+                    player.turret.upgrade()
+                    if player.turret is None or not isinstance(player.turret, Minigun):
+                        player.equip(
+                            turret=Minigun(self.factory, self.player_bullet_group)
+                        )
 
     def draw_wave_count(self, wave_count: int) -> None:
         text = self.font.render(f"{wave_count}", True, (255, 255, 255))

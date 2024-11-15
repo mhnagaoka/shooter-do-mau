@@ -22,16 +22,19 @@ from surface_factory import SurfaceFactory
 class ShooterGame:
     def __init__(
         self,
+        build_info: str | None,
         size: tuple[int, int],
         scale_factor: float,
         asset_folders: list[str],
         keybindings: Keybindings = default_keybindings,
     ) -> None:
+        self.build_info = build_info
         self.scale_factor = scale_factor
         self.screen = pygame.Surface(size)
         self.factory = SurfaceFactory(asset_folders)
         self.keybindings = keybindings
         self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
+        self.small_font = pygame.font.Font(pygame.font.get_default_font(), 8)
         self.bg = pygame.image.load("bg/nebula_288.png").convert()
         self.bg.set_alpha(96)
         self.player_group = pygame.sprite.RenderPlain()
@@ -219,6 +222,14 @@ class ShooterGame:
             self.screen.get_rect().centerx - text.get_width() // 2,
             self.screen.get_rect().centery - text.get_height() // 2,
         )
+        if self.build_info is not None:
+            build_info_text = self.small_font.render(
+                self.build_info, True, (255, 255, 255)
+            )
+            build_info_coord = (
+                self.screen.get_width() - build_info_text.get_width() - 5,
+                self.screen.get_height() - build_info_text.get_height() - 5,
+            )
         frame_count = 100
         while True:
             dt = yield
@@ -236,6 +247,8 @@ class ShooterGame:
                 if blink_timer <= 0.0:
                     mode = 1
                     frame_count = 100
+            if self.build_info is not None:
+                self.screen.blit(build_info_text, build_info_coord)
             frame_count -= 1
             self.crosshair_group.update(dt)
             self.crosshair_group.draw(self.screen)

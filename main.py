@@ -8,6 +8,8 @@ import pygame
 from shooter_game import ShooterGame
 import engine
 
+from build_info import build_info
+
 
 async def main():
     if sys.platform == "emscripten":
@@ -32,7 +34,7 @@ async def main():
         pygame.K_s: engine.Direction.DOWN,
         pygame.K_d: engine.Direction.RIGHT,
     }
-    game = ShooterGame(size, scale_factor, ["assets"], keybindings)
+    game = ShooterGame(build_info(), size, scale_factor, ["assets"], keybindings)
     display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
 
     events = []
@@ -52,7 +54,9 @@ async def main():
             game.update(events, dt)
         except StopIteration:
             old = game
-            game = ShooterGame(size, scale_factor, ["assets"], keybindings)
+            game = ShooterGame(
+                build_info(), size, scale_factor, ["assets"], keybindings
+            )
             game.hi_score = old.hi_score
         display.blit(pygame.transform.scale(game.screen, display_size), (0, 0))
         pygame.display.flip()

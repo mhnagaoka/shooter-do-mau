@@ -23,7 +23,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Run pygbag build
-        run: uvx pygbag --template page/main.tmpl --build .
+        run: uvx pygbag --template page/main.tmpl --build --ume_block=0 .
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

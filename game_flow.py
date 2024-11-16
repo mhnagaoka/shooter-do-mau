@@ -493,6 +493,7 @@ class GameFlow:
                 yield from self._wave(state)
                 yield from self._wait_enemies_to_die()
                 state.update_difficulty(state.difficulty + 2)
+                self.game.progress = state.difficulty
             # Send a boss
             yield from self._boss_cut_scene()
             self.create_boss(state)

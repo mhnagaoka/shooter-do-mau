@@ -48,6 +48,7 @@ class ShooterGame:
         self.item_group = pygame.sprite.RenderPlain()
         self._create_player()
         self._create_crosshair()
+        self.progress = 0
         self.score = 0
         self.hi_score = 0
         self.generator = self._main_loop()
@@ -204,8 +205,8 @@ class ShooterGame:
                             turret=Minigun(self.factory, self.player_bullet_group)
                         )
 
-    def draw_wave_count(self, wave_count: int) -> None:
-        text = self.font.render(f"{wave_count}", True, (255, 255, 255))
+    def draw_progress(self) -> None:
+        text = self.font.render(f"{self.progress}", True, (255, 255, 255))
         coord = (5, 5)
         self.screen.blit(text, coord)
 
@@ -314,7 +315,7 @@ class ShooterGame:
                 self.explosion_group.draw(self.screen)
                 for player in self.player_group.sprites():
                     player.draw_power_bar(self.screen)
-                # self.draw_wave_count(enemy_spawner.wave_count)
+                self.draw_progress()
                 self.draw_score()
                 self.draw_hi_score()
                 self.draw_messages()

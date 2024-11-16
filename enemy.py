@@ -200,8 +200,6 @@ class Brain(Enemy):
         base = pygame.Vector2(self.rect.center)
         missile_pos = (base + normal * 12, base - normal * 12)
 
-        angle_error = random.uniform(-10.0, 10.0)
-        direction += angle_error
         seeking = SeekingTrajectoryProvider(
             (missile_pos[0].x, missile_pos[0].y),
             self.trajectory_provider.get_current_angle(),

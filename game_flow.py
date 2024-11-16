@@ -446,17 +446,11 @@ class GameFlow:
             yield
         # Give control back to the player
         self.game.player.trajectory_provider = keyboard
-        self.show_messages("Get ready!", "", "GO! GO! GO!")
-        timer = 1.0
-        while timer > 0:
-            dt: float = yield
-            timer -= dt
+        self.show_messages("GO! GO! GO!", "", "")
+        yield from self._wait(1.0)
         self.show_messages()
-        timer = 0.5
-        while timer > 0:
-            dt: float = yield
-            timer -= dt
-
+        yield from self._wait(0.5)
+        # Main gameplay loop
         while state.difficulty <= 100:
             # Send 10 waves of enemies
             for wave in range(10):
@@ -468,23 +462,17 @@ class GameFlow:
                     # 1 squadron of insect enemies
                     for _ in range(state.squadron_size):
                         self.create_insect_enemy(state)
-                        timer = state.insect_spawn_timer
-                        while timer > 0:
-                            dt: float = yield
-                            timer -= dt
+                        yield from self._wait(state.insect_spawn_timer)
                     # wait for all enemies to be defeated or go away
                     while self.game.enemy_group:
-                        dt: float = yield
+                        yield
                     state.update_difficulty(state.difficulty + 2)
             # Send a boss
             self.create_boss(state)
             while self.game.enemy_group:
-                dt: float = yield
+                yield
         self.show_messages(
             "You did it!", "You defeated the enemy!", "Congratulations!!!"
         )
-        timer = 5.0
-        while timer > 0:
-            dt: float = yield
-            timer -= dt
+        yield from self._wait(5.0)
         self.show_messages()

@@ -4,6 +4,7 @@ from typing import Generator
 import pygame
 import pygame.event
 
+from game_flow import GameFlow
 import item
 from animation import Animation
 from enemy import Enemy, EnemySpawner, RedEnemy
@@ -49,6 +50,7 @@ class ShooterGame:
         self.score = 0
         self.hi_score = 0
         self.generator = self._main_loop()
+        self.player_messages = []
         next(self.generator)
         self.menu_generator = self._render_menu()
         next(self.menu_generator)
@@ -215,6 +217,19 @@ class ShooterGame:
         coord = (self.screen.get_width() - text.get_width() - 5, 5)
         self.screen.blit(text, coord)
 
+    def draw_messages(self) -> None:
+        texts = [
+            self.font.render(m, True, (255, 255, 255)) for m in self.player_messages
+        ]
+        gap = 5
+        total_height = sum(t.get_height() for t in texts) + gap * (len(texts) - 1)
+        top = (self.screen.get_height() - total_height) // 2
+        for i, _ in enumerate(self.player_messages):
+            text = texts[i]
+            left = (self.screen.get_width() - text.get_width()) // 2
+            self.screen.blit(text, (left, top))
+            top += text.get_height() + gap
+
     def _render_menu(self) -> Generator[None, float, None]:
         mode = 1  # 0: blink, 1: show
         text = self.font.render("Hit the space bar to start.", True, (255, 255, 255))
@@ -256,6 +271,7 @@ class ShooterGame:
 
     def _main_loop(self) -> Generator[None, float, None]:
         enemy_spawner = EnemySpawner()
+        game_flow = GameFlow(self)
         mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
         while True:
             events, dt = yield  # yields dt every time the game is updated
@@ -277,7 +293,8 @@ class ShooterGame:
                     ):
                         mode = 10
             elif mode == 10 or mode == 20 or mode == 21:
-                enemy_spawner.update(self, dt)
+                #  enemy_spawner.update(self, dt)
+                game_flow.update(dt)
                 self.explosion_group.update(dt)
                 self.enemy_group.update(dt)
                 self.player_group.update(dt)
@@ -297,6 +314,7 @@ class ShooterGame:
                 self.draw_wave_count(enemy_spawner.wave_count)
                 self.draw_score()
                 self.draw_hi_score()
+                self.draw_messages()
                 self._check_bullet_collision()
                 self._check_item_collision()
                 # Kill bullets that are out of bounds

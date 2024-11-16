@@ -353,19 +353,19 @@ class Player(TrajectorySprite):
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
                 if self.white_out_timer > 0.0:
-                    self.set_animation(self.left_anim_white_out)
+                    self.set_animation(self.left_anim_white_out, None)
                 else:
-                    self.set_animation(self.left_anim)
+                    self.set_animation(self.left_anim, None)
             elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
                 if self.white_out_timer > 0.0:
-                    self.set_animation(self.right_anim_white_out)
+                    self.set_animation(self.right_anim_white_out, None)
                 else:
-                    self.set_animation(self.right_anim)
+                    self.set_animation(self.right_anim, None)
             else:
                 if self.white_out_timer > 0.0:
-                    self.set_animation(self.neutral_anim_white_out)
+                    self.set_animation(self.neutral_anim_white_out, None)
                 else:
-                    self.set_animation(self.neutral_anim)
+                    self.set_animation(self.neutral_anim, None)
             if keys[pygame.K_SPACE]:
                 if self._cannon is not None:
                     self._cannon.shoot(self.rect.center)

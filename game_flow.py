@@ -284,6 +284,25 @@ class GameFlow:
             self.game.enemy_group,
         ).on_trajectory_end(lambda s: s.kill())
 
+    def create_bonus_red_enemy(self) -> None:
+        off_screen_offset = 10
+        screen_rect = self.game.screen.get_rect()
+        random_x = random.randint(0, screen_rect.width)
+        initial_pos = (random_x, screen_rect.top - off_screen_offset)
+        final_pos = (
+            random_x,
+            screen_rect.bottom + off_screen_offset,
+        )
+        straight = StraightTrajectoryProvider(initial_pos, final_pos, None, 160.0)
+
+        RedEnemy(
+            self.game.factory,
+            straight,
+            self.game.player_group,
+            self.game.enemy_bullet_group,
+            self.game.enemy_group,
+        ).on_trajectory_end(lambda s: s.kill())
+
     def create_boss(self, state: GameState) -> None:
         if state.difficulty <= 20:
             trajectory = SeekingTrajectoryProvider(
@@ -390,6 +409,28 @@ class GameFlow:
                 self.game.enemy_group,
             )
 
+    def _wait(self, duration: float) -> Generator[None, float, None]:
+        timer = duration
+        while timer > 0:
+            dt: float = yield
+            timer -= dt
+
+    def _bonus_round(self) -> Generator[None, float, None]:
+        self.show_messages("Bonus round")
+        yield from self._wait(1.0)
+        self.show_messages()
+        yield from self._wait(0.5)
+        for _ in range(10):
+            self.create_bonus_red_enemy()
+            yield from self._wait(1.0)
+        # wait for all enemies to be defeated or go away
+        while self.game.enemy_group:
+            dt: float = yield
+        self.show_messages("Bonus round completed")
+        yield from self._wait(1.0)
+        self.show_messages()
+        yield from self._wait(0.5)
+
     def _game_script(self) -> Generator[None, float, None]:
         state = GameState(self.game)
         # Move the player ship to the center of the screen
@@ -415,22 +456,26 @@ class GameFlow:
         while timer > 0:
             dt: float = yield
             timer -= dt
+
         while state.difficulty <= 100:
             # Send 10 waves of enemies
-            for _ in range(10):
-                # 1 red enemy
-                self.create_red_enemy(state)
-                # 1 squadron of insect enemies
-                for _ in range(state.squadron_size):
-                    self.create_insect_enemy(state)
-                    timer = state.insect_spawn_timer
-                    while timer > 0:
+            for wave in range(10):
+                if wave == 5:
+                    yield from self._bonus_round()
+                else:
+                    # 1 red enemy
+                    self.create_red_enemy(state)
+                    # 1 squadron of insect enemies
+                    for _ in range(state.squadron_size):
+                        self.create_insect_enemy(state)
+                        timer = state.insect_spawn_timer
+                        while timer > 0:
+                            dt: float = yield
+                            timer -= dt
+                    # wait for all enemies to be defeated or go away
+                    while self.game.enemy_group:
                         dt: float = yield
-                        timer -= dt
-                # wait for all enemies to be defeated or go away
-                while self.game.enemy_group:
-                    dt: float = yield
-                state.update_difficulty(state.difficulty + 2)
+                    state.update_difficulty(state.difficulty + 2)
             # Send a boss
             self.create_boss(state)
             while self.game.enemy_group:

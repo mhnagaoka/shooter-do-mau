@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Generator
 
 import pygame
 
-from animation import Animation
 from enemy import Brain, InsectEnemy, RedEnemy
 from engine import (
     KeyboardTrajectoryProvider,
@@ -195,7 +194,8 @@ class GameFlow:
             self.generator.send(dt)
         except StopIteration:
             # The game has ended \o/
-            self.game.player.kill()
+            if self.game.player.alive():
+                self.game.player.kill()
 
     def show_messages(self, *messages: str) -> None:
         self.game.player_messages.clear()
@@ -297,37 +297,44 @@ class GameFlow:
         ).on_trajectory_end(lambda s: s.kill())
 
     def create_boss(self, state: GameState) -> None:
+        result = []
         if state.difficulty <= 20:
             trajectory = SeekingTrajectoryProvider(
                 (144, 288), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
         elif state.difficulty <= 40:
             trajectory = SeekingTrajectoryProvider(
                 (-20, 144), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
             trajectory = SeekingTrajectoryProvider(
                 (288, 144), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
         elif state.difficulty <= 60:
             trajectory = SeekingTrajectoryProvider(
@@ -364,49 +371,68 @@ class GameFlow:
             trajectory = SeekingTrajectoryProvider(
                 (144, 288), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
             trajectory = SeekingTrajectoryProvider(
                 (144, -20), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
             trajectory = SeekingTrajectoryProvider(
                 (-20, 144), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
             trajectory = SeekingTrajectoryProvider(
                 (288, 144), 0, 20.0, 2.0, self.game.player
             )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
+            result.append(
+                Brain(
+                    self.game.factory,
+                    trajectory,
+                    self.game.player_group,
+                    self.game.enemy_bullet_group,
+                    self.game.enemy_group,
+                )
             )
+        return result
 
     def _wait(self, duration: float) -> Generator[None, float, None]:
         timer = duration
         while timer > 0:
             dt: float = yield
             timer -= dt
+
+    def _wait_enemies_to_die(self) -> Generator[None, float, None]:
+        while self.game.enemy_group:
+            yield
+
+    def _wave(self, state: GameState) -> Generator[None, float, None]:
+        self.create_red_enemy(state)
+        for _ in range(state.squadron_size):
+            self.create_insect_enemy(state)
+            yield from self._wait(state.insect_spawn_timer)
 
     def _bonus_round(self) -> Generator[None, float, None]:
         self.show_messages("Bonus round")
@@ -446,28 +472,21 @@ class GameFlow:
     def _game_script(self) -> Generator[None, float, None]:
         state = GameState(self.game)
 
+        # Boss test
+        # self.game.player.equip(
+        #     cannon=TurboLaser(self.game.factory, self.game.player_bullet_group, None)
+        # )
+        # for start in [(100, 0), (200, 0)]:
+        #     self.create_insect_enemy(state)
+        #     boss = self.create_boss(state)[0]
+        #     boss.trajectory_provider.position = pygame.Vector2(start)
+        #     boss.health = 15
+        #     break
+        # yield from self._wait_enemies_to_die()
+        # yield from self._wait(2.0)
+        # return
+
         yield from self._intro()
-
-        # # Boss test
-        # self.create_boss(state)
-        # boss: Brain = self.game.enemy_group.sprites()[0]
-        # boss.trajectory_provider.position = pygame.Vector2(144, 0)
-        # boss.health = 15
-        # while self.game.enemy_group:
-        #     yield
-
-        # # Insect test
-        # self.create_insect_enemy(state)
-        # while self.game.enemy_group:
-        #     yield
-
-        # # Boss test
-        # self.create_boss(state)
-        # boss: Brain = self.game.enemy_group.sprites()[0]
-        # boss.trajectory_provider.position = pygame.Vector2(144, 0)
-        # boss.health = 15
-        # while self.game.enemy_group:
-        #     yield
 
         # Main gameplay loop
         while state.difficulty <= 100:
@@ -475,21 +494,12 @@ class GameFlow:
             for wave in range(10):
                 if wave == 5:
                     yield from self._bonus_round()
-                else:
-                    # 1 red enemy
-                    self.create_red_enemy(state)
-                    # 1 squadron of insect enemies
-                    for _ in range(state.squadron_size):
-                        self.create_insect_enemy(state)
-                        yield from self._wait(state.insect_spawn_timer)
-                    # wait for all enemies to be defeated or go away
-                    while self.game.enemy_group:
-                        yield
-                    state.update_difficulty(state.difficulty + 2)
+                yield from self._wave(state)
+                yield from self._wait_enemies_to_die()
+                state.update_difficulty(state.difficulty + 2)
             # Send a boss
             self.create_boss(state)
-            while self.game.enemy_group:
-                yield
+            yield from self._wait_enemies_to_die()
         self.show_messages(
             "You did it!", "You defeated the enemy!", "Congratulations!!!"
         )

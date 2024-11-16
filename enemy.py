@@ -40,20 +40,25 @@ class Enemy(TrajectorySprite):
     def hit(self, shot: Shot) -> bool:
         self.health -= shot.damage
         if self.health > 0.0:
-            self.white_out_timer = 0.1
+            self.white_out_timer = 0.05
             self.animation.frames = self.white_out_frames
             return False
         return True
 
+    def set_animation(self, animation, angle_offset=0, reset_angle=False):
+        self.original_frames = animation.frames
+        self.white_out_frames = [white_out(frame) for frame in animation.frames]
+        return super().set_animation(animation, angle_offset, reset_angle)
+
     def __main_loop(self) -> typing.Generator[None, float, None]:
         dt: float
         while True:
-            if self.white_out_timer > 0.0:
-                while self.white_out_timer > 0.0:
-                    dt = yield
-                    self.white_out_timer -= dt
-                self.animation.frames = self.original_frames
-            dt = yield
+            while self.white_out_timer <= 0.0:
+                dt = yield
+            while self.white_out_timer > 0.0:
+                dt = yield
+                self.white_out_timer -= dt
+            self.animation.frames = self.original_frames
 
 
 class RedEnemy(Enemy):

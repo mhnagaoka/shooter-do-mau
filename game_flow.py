@@ -296,9 +296,12 @@ class GameFlow:
             self.game.enemy_group,
         ).on_trajectory_end(lambda s: s.kill())
 
-    def create_boss(self, state: GameState) -> None:
-        result = []
-        if state.difficulty <= 20:
+    def create_boss(self, state: GameState) -> list[Brain]:
+        result: list[Brain] = []
+        if state.difficulty < 40:
+            return result
+        elif 40 <= state.difficulty < 60:
+            # one more
             trajectory = SeekingTrajectoryProvider(
                 (144, 288), 0, 20.0, 2.0, self.game.player
             )
@@ -311,42 +314,8 @@ class GameFlow:
                     self.game.enemy_group,
                 )
             )
-        elif state.difficulty <= 40:
-            trajectory = SeekingTrajectoryProvider(
-                (-20, 144), 0, 20.0, 2.0, self.game.player
-            )
-            result.append(
-                Brain(
-                    self.game.factory,
-                    trajectory,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-            )
-            trajectory = SeekingTrajectoryProvider(
-                (288, 144), 0, 20.0, 2.0, self.game.player
-            )
-            result.append(
-                Brain(
-                    self.game.factory,
-                    trajectory,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-            )
-        elif state.difficulty <= 60:
-            trajectory = SeekingTrajectoryProvider(
-                (144, 288), 0, 20.0, 2.0, self.game.player
-            )
-            Brain(
-                self.game.factory,
-                trajectory,
-                self.game.player_group,
-                self.game.enemy_bullet_group,
-                self.game.enemy_group,
-            )
+        elif 60 <= state.difficulty < 80:
+            # two more
             trajectory = SeekingTrajectoryProvider(
                 (-20, 144), 0, 20.0, 2.0, self.game.player
             )
@@ -368,20 +337,9 @@ class GameFlow:
                 self.game.enemy_group,
             )
         else:
+            # three more
             trajectory = SeekingTrajectoryProvider(
                 (144, 288), 0, 20.0, 2.0, self.game.player
-            )
-            result.append(
-                Brain(
-                    self.game.factory,
-                    trajectory,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-            )
-            trajectory = SeekingTrajectoryProvider(
-                (144, -20), 0, 20.0, 2.0, self.game.player
             )
             result.append(
                 Brain(
@@ -469,23 +427,61 @@ class GameFlow:
         self.show_messages()
         yield from self._wait(0.5)
 
+    def _boss_cut_scene(self) -> Generator[None, float, None]:
+        self.game.player.disable_shooting()
+        self.show_messages("Boss incoming!", "", "")
+        yield from self._wait(1.0)
+        self.show_messages()
+        yield from self._wait(0.5)
+        keyboard: KeyboardTrajectoryProvider = self.game.player.trajectory_provider
+        self.game.player.trajectory_provider = LinearSegmentsTrajectoryProvider(
+            [self.game.player.rect.center, self.game.screen.get_rect().center], 80.0, 0
+        )
+        keyboard.position = pygame.Vector2(self.game.screen.get_rect().center)
+        trajectory = LinearSegmentsTrajectoryProvider([(144, -16), (144, 32)], 20.0, 0)
+        brain = Brain(
+            self.game.factory,
+            trajectory,
+            self.game.player_group,
+            self.game.enemy_bullet_group,
+            self.game.enemy_group,
+        )
+        brain.disable_shooting()
+        while not self.game.player.trajectory_provider.is_finished():
+            yield
+        while not trajectory.is_finished():
+            yield
+        self.show_messages("Prepare to die!", "", "")
+        yield from self._wait(1.0)
+        self.show_messages()
+        yield from self._wait(0.5)
+        brain.trajectory_provider = SeekingTrajectoryProvider(
+            (144, 32), 90, 20.0, 2.0, self.game.player
+        )
+
+        brain.enable_shooting()
+        self.game.player.enable_shooting()
+        self.game.player.trajectory_provider = keyboard
+
     def _game_script(self) -> Generator[None, float, None]:
         state = GameState(self.game)
 
-        # Boss test
-        # self.game.player.equip(
-        #     cannon=TurboLaser(self.game.factory, self.game.player_bullet_group, None)
-        # )
-        # for start in [(100, 0), (200, 0)]:
-        #     self.create_insect_enemy(state)
-        #     boss = self.create_boss(state)[0]
-        #     boss.trajectory_provider.position = pygame.Vector2(start)
-        #     boss.health = 15
-        #     break
+        # # Boss test
+        # cannon = TurboLaser(self.game.factory, self.game.player_bullet_group, None)
+        # cannon.upgrade()
+        # cannon.upgrade()
+        # cannon.upgrade()
+        # cannon.upgrade()
+        # cannon.upgrade()
+        # self.game.player.equip(cannon=cannon)
+        # state.update_difficulty(90)
+        # yield from self._boss_cut_scene()
+        # self.create_boss(state)
         # yield from self._wait_enemies_to_die()
         # yield from self._wait(2.0)
         # return
 
+        # Intro
         yield from self._intro()
 
         # Main gameplay loop
@@ -498,8 +494,16 @@ class GameFlow:
                 yield from self._wait_enemies_to_die()
                 state.update_difficulty(state.difficulty + 2)
             # Send a boss
+            yield from self._boss_cut_scene()
             self.create_boss(state)
             yield from self._wait_enemies_to_die()
+            yield from self._wait(1.0)
+            self.show_messages("Get ready!", "", "")
+            yield from self._wait(1.0)
+            self.show_messages()
+            yield from self._wait(0.5)
+
+        # End game
         self.show_messages(
             "You did it!", "You defeated the enemy!", "Congratulations!!!"
         )

@@ -30,12 +30,21 @@ class Enemy(TrajectorySprite):
         self.white_out_timer = 0.0
         self.hit_points = hit_points
         self.health = hit_points
+        self.shooting_enabled = True
         self.__generator = self.__main_loop()
         next(self.__generator)
 
     def update(self, dt: float) -> None:
         super().update(dt)
         self.__generator.send(dt)
+
+    def enable_shooting(self) -> "Enemy":
+        self.shooting_enabled = True
+        return self
+
+    def disable_shooting(self) -> "Enemy":
+        self.shooting_enabled = False
+        return self
 
     def hit(self, shot: Shot) -> bool:
         self.health -= shot.damage
@@ -86,6 +95,8 @@ class RedEnemy(Enemy):
 
     # TODO Do we need the player argument? We have the player group already
     def shoot(self, player: Player) -> None:
+        if not self.shooting_enabled:
+            return
         initial_pos = self.rect.center
         direction = -pygame.Vector2(
             player.rect.center[0] - initial_pos[0],
@@ -144,6 +155,8 @@ class InsectEnemy(Enemy):
 
     # TODO Do we need the player argument? We have the player group already
     def shoot(self, player: Player) -> None:
+        if not self.shooting_enabled:
+            return
         initial_pos = self.rect.center
         direction = -pygame.Vector2(
             player.rect.center[0] - initial_pos[0],
@@ -191,8 +204,9 @@ class Brain(Enemy):
         super().update(dt)
         self.__generator.send(dt)
 
-    # TODO Do we need the player argument? We have the player group already
     def shoot(self) -> None:
+        if not self.shooting_enabled:
+            return
         if not self.player_group:
             return
         player = self.player_group.sprites()[0]

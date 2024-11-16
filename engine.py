@@ -67,13 +67,13 @@ class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
                 (self._total_length, self._total_length + delta_length, begin, end)
             )
             self._total_length += delta_length
-        self._distance = 0
+        self._distance = 0.0
         self._position = ctrlpoints[0]
         self._angle = (end - begin).angle_to(Vector2(1, 0))
         self.shift = shift
 
     def update(self, dt: float) -> None:
-        self._distance += round(self._initial_speed * dt)
+        self._distance += self._initial_speed * dt
         if self._distance > self._total_length:
             self._distance = self._total_length
         # find which segment we're in and interpolate

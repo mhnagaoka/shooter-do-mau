@@ -277,6 +277,7 @@ class Player(TrajectorySprite):
             loop=True,
         )
         super().__init__(self.neutral_anim, None, keyboard, *groups)
+        self.shooting_enabled = True
         self.power_source = None
         self._cannon = None
         self._turret = None
@@ -345,6 +346,35 @@ class Player(TrajectorySprite):
             return False
         return True
 
+    def enable_shooting(self) -> "Player":
+        self.shooting_enabled = True
+        return self
+
+    def disable_shooting(self) -> "Player":
+        self.shooting_enabled = False
+        return self
+
+    def _shoot_cannon(self) -> None:
+        if not self.shooting_enabled:
+            return
+        if self._cannon is not None:
+            self._cannon.shoot(self.rect.center)
+
+    def _shoot_turret(self) -> None:
+        if not self.shooting_enabled:
+            return
+        if self._turret is not None:
+            mouse_pos = pygame.mouse.get_pos()
+            player_pos = self.rect.center
+            aim_vector = (
+                mouse_pos[0] / self.scale_factor - player_pos[0],
+                mouse_pos[1] / self.scale_factor - player_pos[1],
+            )
+            if aim_vector == (0, 0):
+                aim_vector = (1, 0)
+            shooting_angle = -pygame.Vector2(aim_vector).angle_to(pygame.Vector2(1, 0))
+            self._turret.shoot(self.rect.center, shooting_angle)
+
     def _main_loop(self) -> Generator[None, float, None]:
         while True:
             dt: float = yield  # yields dt every time the game is updated
@@ -368,24 +398,10 @@ class Player(TrajectorySprite):
                 else:
                     self.set_animation(self.neutral_anim, None)
             if keys[pygame.K_SPACE]:
-                if self._cannon is not None:
-                    self._cannon.shoot(self.rect.center)
+                self._shoot_cannon()
             button, _, _ = pygame.mouse.get_pressed()
             if button:
-                # Shoot with the turret
-                if self._turret is not None:
-                    mouse_pos = pygame.mouse.get_pos()
-                    player_pos = self.rect.center
-                    aim_vector = (
-                        mouse_pos[0] / self.scale_factor - player_pos[0],
-                        mouse_pos[1] / self.scale_factor - player_pos[1],
-                    )
-                    if aim_vector == (0, 0):
-                        aim_vector = (1, 0)
-                    shooting_angle = -pygame.Vector2(aim_vector).angle_to(
-                        pygame.Vector2(1, 0)
-                    )
-                    self._turret.shoot(self.rect.center, shooting_angle)
+                self._shoot_turret()
             self.power_source.charge(dt)
             self._cannon.update(dt)
             self._turret.update(dt)

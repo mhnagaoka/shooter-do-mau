@@ -179,7 +179,9 @@ class GameState:
         self.insect_cannon_timer = pygame.math.lerp(2.0, 0.5, difficulty_factor)
         self.double_squadron = difficulty_factor
         self.squadron_size = round(pygame.math.lerp(5, 15, difficulty_factor))
-        self.insect_surf = random.choice(self.game.factory.surfaces["insect-enemies"])
+        self.insect_type = random.randint(
+            0, len(self.game.factory.surfaces["insect-enemies"]) - 1
+        )
 
 
 class GameFlow:
@@ -207,51 +209,42 @@ class GameFlow:
             provider = LinearSegmentsTrajectoryProvider(
                 state.ctrlpoints, state.insect_speed, -8
             )
-            insect_enemy = (
-                InsectEnemy(
-                    self.game.factory,
-                    provider,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-                .set_animation(Animation.static(state.insect_surf), None)
-                .on_trajectory_end(lambda s: s.kill())
-            )
+            insect_enemy = InsectEnemy(
+                self.game.factory,
+                state.insect_type,
+                provider,
+                self.game.player_group,
+                self.game.enemy_bullet_group,
+                self.game.enemy_group,
+            ).on_trajectory_end(lambda s: s.kill())
             insect_enemy.shot_speed = state.insect_shot_speed
             insect_enemy.cannon_timer = state.insect_cannon_timer
 
             provider = LinearSegmentsTrajectoryProvider(
                 state.ctrlpoints, state.insect_speed, 8
             )
-            insect_enemy = (
-                InsectEnemy(
-                    self.game.factory,
-                    provider,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-                .set_animation(Animation.static(state.insect_surf), None)
-                .on_trajectory_end(lambda s: s.kill())
-            )
+            insect_enemy = InsectEnemy(
+                self.game.factory,
+                state.insect_type,
+                provider,
+                self.game.player_group,
+                self.game.enemy_bullet_group,
+                self.game.enemy_group,
+            ).on_trajectory_end(lambda s: s.kill())
             insect_enemy.shot_speed = state.insect_shot_speed
             insect_enemy.cannon_timer = state.insect_cannon_timer
         else:
             provider = LinearSegmentsTrajectoryProvider(
                 state.ctrlpoints, state.insect_speed, 0
             )
-            insect_enemy = (
-                InsectEnemy(
-                    self.game.factory,
-                    provider,
-                    self.game.player_group,
-                    self.game.enemy_bullet_group,
-                    self.game.enemy_group,
-                )
-                .set_animation(Animation.static(state.insect_surf), None)
-                .on_trajectory_end(lambda s: s.kill())
-            )
+            insect_enemy = InsectEnemy(
+                self.game.factory,
+                state.insect_type,
+                provider,
+                self.game.player_group,
+                self.game.enemy_bullet_group,
+                self.game.enemy_group,
+            ).on_trajectory_end(lambda s: s.kill())
             insect_enemy.shot_speed = state.insect_shot_speed
             insect_enemy.cannon_timer = state.insect_cannon_timer
 
@@ -450,6 +443,28 @@ class GameFlow:
         yield from self._wait(1.0)
         self.show_messages()
         yield from self._wait(0.5)
+
+        # # Boss test
+        # self.create_boss(state)
+        # boss: Brain = self.game.enemy_group.sprites()[0]
+        # boss.trajectory_provider.position = pygame.Vector2(144, 0)
+        # boss.health = 15
+        # while self.game.enemy_group:
+        #     yield
+
+        # # Insect test
+        # self.create_insect_enemy(state)
+        # while self.game.enemy_group:
+        #     yield
+
+        # # Boss test
+        # self.create_boss(state)
+        # boss: Brain = self.game.enemy_group.sprites()[0]
+        # boss.trajectory_provider.position = pygame.Vector2(144, 0)
+        # boss.health = 15
+        # while self.game.enemy_group:
+        #     yield
+
         # Main gameplay loop
         while state.difficulty <= 100:
             # Send 10 waves of enemies

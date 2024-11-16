@@ -8,6 +8,7 @@ from engine import (
     TrajectorySprite,
 )
 from item import PowerCapsule
+from shot import Shot
 from surface_factory import Animation, SurfaceFactory, crop, white_out
 
 
@@ -36,7 +37,7 @@ class Cannon:
 
     def _fire(self, initial_pos: tuple[int, int]) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
 
     def shoot(self, initial_pos: tuple[int, int]) -> None:
         if self.timer > 0.0:
@@ -80,26 +81,26 @@ class TurboLaser(Cannon):
     def _fire(self, initial_pos: tuple[int, int]) -> None:
         if self._upgrade_level <= 3:
             straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
-            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
         if self._upgrade_level == 4:
             if self._wing_cannon:
                 x, y = initial_pos
                 straight = StraightTrajectoryProvider((x - 8, y), None, -90.0, 600.0)
-                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+                Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
                 straight = StraightTrajectoryProvider((x + 8, y), None, -90.0, 600.0)
-                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+                Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
             else:
                 straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
-                TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+                Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
             self._wing_cannon = not self._wing_cannon
         if self._upgrade_level > 4:
             x, y = initial_pos
             straight = StraightTrajectoryProvider((x - 8, y), None, -90.0, 600.0)
-            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
             straight = StraightTrajectoryProvider((x + 8, y), None, -90.0, 600.0)
-            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
             straight = StraightTrajectoryProvider(initial_pos, None, -90.0, 600.0)
-            TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+            Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
 
 
 class Turret:
@@ -143,7 +144,7 @@ class Turret:
 
     def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
 
 
 class Minigun(Turret):
@@ -169,7 +170,7 @@ class Minigun(Turret):
 
     def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
 
 
 class FlakCannon(Turret):
@@ -196,15 +197,15 @@ class FlakCannon(Turret):
 
     def _fire(self, initial_pos: tuple[int, int], direction: float) -> None:
         straight = StraightTrajectoryProvider(initial_pos, None, direction, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
         straight = StraightTrajectoryProvider(initial_pos, None, direction - 15, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
         straight = StraightTrajectoryProvider(initial_pos, None, direction + 15, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
         straight = StraightTrajectoryProvider(initial_pos, None, direction - 30, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
         straight = StraightTrajectoryProvider(initial_pos, None, direction + 30, 300.0)
-        TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
+        Shot(self.bullet_anim, None, straight, 10.0, self.bullet_group)
 
 
 class Shield:

@@ -7,7 +7,7 @@ import pygame.event
 from game_flow import GameFlow
 import item
 from animation import Animation
-from enemy import Enemy, EnemySpawner, RedEnemy
+from enemy import Enemy, RedEnemy
 from engine import (
     KeyboardTrajectoryProvider,
     MouseTrajectoryProvider,
@@ -17,6 +17,7 @@ from engine import (
     default_keybindings,
 )
 from player import Cannon, FlakCannon, Minigun, Player, Shield, TurboLaser, Turret
+from shot import Shot
 from surface_factory import SurfaceFactory
 
 
@@ -136,25 +137,29 @@ class ShooterGame:
         enemy_collision_result = pygame.sprite.groupcollide(
             self.enemy_group, self.player_bullet_group, False, True
         )
-        for enemy_killed in enemy_collision_result.keys():
-            self.score += 100
-            self._explode(enemy_killed, 40.0)
-            self.enemy_group.remove(enemy_killed)
-            self.explosion_group.add(enemy_killed)
+        enemy: Enemy
+        shots: list[Shot]
+        for enemy, shots in enemy_collision_result.items():
+            for shot in shots:
+                if enemy.hit(shot):
+                    self.score += 100
+                    self._explode(enemy, 40.0)
+                    self.enemy_group.remove(enemy)
+                    self.explosion_group.add(enemy)
+                    break  # you can die only once
         # Check for collisions between bullets and player
         player_collision_result = pygame.sprite.groupcollide(
             self.player_group, self.enemy_bullet_group, False, True
         )
         # Multiple bullets may hit the player at the same time
-        if player_collision_result:
-            for bullets in player_collision_result.values():
-                for _ in bullets:
-                    if self.player and self.player.hit(10.0):  # bullet damage
-                        self.player.controls_enabled = False
-                        self._explode(self.player, 0.0)
-                        self.player_group.remove(self.player)
-                        self.explosion_group.add(self.player)
-                        self.player = None
+        for bullets in player_collision_result.values():
+            for _ in bullets:
+                if self.player and self.player.hit(10.0):  # bullet damage
+                    self.player.controls_enabled = False
+                    self._explode(self.player, 0.0)
+                    self.player_group.remove(self.player)
+                    self.explosion_group.add(self.player)
+                    self.player = None
         # Check for collisions between bullets and items
         item_collision_result = pygame.sprite.groupcollide(
             self.item_group, self.player_bullet_group, False, True
@@ -270,7 +275,6 @@ class ShooterGame:
             self.draw_hi_score()
 
     def _main_loop(self) -> Generator[None, float, None]:
-        enemy_spawner = EnemySpawner()
         game_flow = GameFlow(self)
         mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
         while True:
@@ -293,7 +297,6 @@ class ShooterGame:
                     ):
                         mode = 10
             elif mode == 10 or mode == 20 or mode == 21:
-                #  enemy_spawner.update(self, dt)
                 game_flow.update(dt)
                 self.explosion_group.update(dt)
                 self.enemy_group.update(dt)
@@ -311,7 +314,7 @@ class ShooterGame:
                 self.explosion_group.draw(self.screen)
                 for player in self.player_group.sprites():
                     player.draw_power_bar(self.screen)
-                self.draw_wave_count(enemy_spawner.wave_count)
+                # self.draw_wave_count(enemy_spawner.wave_count)
                 self.draw_score()
                 self.draw_hi_score()
                 self.draw_messages()

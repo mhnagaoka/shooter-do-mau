@@ -424,8 +424,7 @@ class GameFlow:
         self.show_messages()
         yield from self._wait(0.5)
 
-    def _game_script(self) -> Generator[None, float, None]:
-        state = GameState(self.game)
+    def _intro(self) -> Generator[None, float, None]:
         # Move the player ship to the center of the screen
         self.show_messages("Get ready!", "", "")
         keyboard: KeyboardTrajectoryProvider = self.game.player.trajectory_provider
@@ -443,6 +442,11 @@ class GameFlow:
         yield from self._wait(1.0)
         self.show_messages()
         yield from self._wait(0.5)
+
+    def _game_script(self) -> Generator[None, float, None]:
+        state = GameState(self.game)
+
+        yield from self._intro()
 
         # # Boss test
         # self.create_boss(state)

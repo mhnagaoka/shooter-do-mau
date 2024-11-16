@@ -5,7 +5,6 @@ import pygame
 
 from animation import Animation
 from engine import (
-    LinearSegmentsTrajectoryProvider,
     SeekingTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectoryProvider,
@@ -14,9 +13,6 @@ from engine import (
 from player import Player
 from shot import Shot
 from surface_factory import SurfaceFactory, crop, white_out
-
-if typing.TYPE_CHECKING:
-    from shooter_game import ShooterGame
 
 
 class Enemy(TrajectorySprite):
@@ -69,7 +65,6 @@ class RedEnemy(Enemy):
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
-        print(f"RedEnemy {player_group=}")
         self.neutral_anim = Animation(factory.surfaces["red-enemy"], 0.1, loop=True)
         super().__init__(self.neutral_anim, 90.0, trajectory, 9.0, *groups)
         self.player_group = player_group
@@ -126,7 +121,6 @@ class InsectEnemy(Enemy):
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
-        print(f"InsectEnemy {player_group=}")
         anim = Animation.static(factory.surfaces["insect-enemies"][_type])
         super().__init__(anim, 90.0, trajectory, 19.0, *groups)
         self.player_group = player_group
@@ -178,7 +172,6 @@ class Brain(Enemy):
         bullet_group: pygame.sprite.AbstractGroup,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
-        print(f"Brain {player_group=}")
         self.neutral_anim = Animation(factory.surfaces["brain-1"], 0.1, loop=True)
         super().__init__(self.neutral_anim, 90.0, trajectory, 100.0, *groups)
         self.player_group = player_group

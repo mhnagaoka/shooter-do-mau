@@ -123,7 +123,7 @@ class ShooterGame:
                 item.Minigun,
                 item.FlakCannon,
                 item.TurboLaser,
-                item.TurboLaser,
+                item.IceCream,
             ]
             constructor = random.choice(items)
             _item = constructor(
@@ -192,6 +192,8 @@ class ShooterGame:
                 # TODO: Ugly code, refactor
                 if isinstance(_item, item.PowerCapsule):
                     player.power_source.charge_from(_item)
+                elif isinstance(_item, item.IceCream):
+                    player.power_source.supercharge()
                 elif isinstance(_item, item.TurboLaser):
                     player.cannon.upgrade()
                     if player.cannon is None or not isinstance(

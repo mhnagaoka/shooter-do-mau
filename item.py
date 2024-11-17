@@ -1,7 +1,8 @@
 import random
+
 from animation import Animation
 from engine import StraightTrajectoryProvider, TrajectorySprite
-from surface_factory import SurfaceFactory, trim
+from surface_factory import SurfaceFactory, crop, trim
 
 
 class Item(TrajectorySprite):
@@ -26,6 +27,22 @@ class PowerCapsule(Item):
         )
         super().__init__(animation, 0.0, trajectory_provider, *groups)
         self.power = 50.0
+
+
+class IceCream(Item):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        initial_pos: tuple[int, int],
+        angle: float,
+        *groups,
+    ):
+        animation = Animation.static(crop(factory.surfaces["items"][1], 2, 2, 12, 14))
+        rotation_speed = random.choice([360, -360])
+        trajectory_provider = StraightTrajectoryProvider(
+            initial_pos, None, angle, 40.0, rotation_speed
+        )
+        super().__init__(animation, 0.0, trajectory_provider, *groups)
 
 
 class FlakCannon(Item):

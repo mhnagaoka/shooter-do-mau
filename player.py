@@ -2,6 +2,7 @@ from typing import Generator
 
 import pygame
 
+from animation import Animation
 from engine import (
     KeyboardTrajectoryProvider,
     StraightTrajectoryProvider,
@@ -9,7 +10,7 @@ from engine import (
 )
 from item import PowerCapsule
 from shot import Shot
-from surface_factory import Animation, SurfaceFactory, crop, white_out
+from surface_factory import SurfaceFactory, crop, white_out
 
 
 class Cannon:
@@ -233,11 +234,13 @@ class Shield:
 
 class PowerSource:
     def __init__(self):
+        self.capacity = 100
         self.power = 100.0
         self.power_regen = 10.0
 
     def charge(self, dt: float):
-        self.power = min(self.power + self.power_regen * dt, 100.0)
+        if self.power < self.capacity:
+            self.power = min(self.power + self.power_regen * dt, self.capacity)
 
     def consume(self, amount: float):
         self.power = max(self.power - amount, 0.0)
@@ -246,7 +249,11 @@ class PowerSource:
         return self.power >= amount
 
     def charge_from(self, power_capsule: PowerCapsule):
-        self.power = min(self.power + power_capsule.power, 100.0)
+        if self.power < self.capacity:
+            self.power = min(self.power + power_capsule.power, self.capacity)
+
+    def supercharge(self):
+        self.power = self.capacity * 2
 
 
 class Player(TrajectorySprite):
@@ -299,13 +306,26 @@ class Player(TrajectorySprite):
         bar_y = self.rect.y + self.rect.height + 2
 
         # Calculate the width of the filled part of the bar
-        filled_width = int(bar_width * self.power_source.power / 100.0)
+        filled_width = int(bar_width * min(self.power_source.power, 100.0) / 100.0)
 
         # Draw the background of the bar (empty part)
         pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, 1))
 
         # Draw the filled part of the bar
         pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, filled_width, 1))
+
+        extra_power = max(self.power_source.power - self.power_source.capacity, 0)
+        if extra_power > 0:
+            # Calculate the width of the filled part of the extra power bar
+            extra_filled_width = int(bar_width * min(extra_power, 100.0) / 100.0)
+
+            # Draw the background of the extra power bar (empty part)
+            pygame.draw.rect(screen, (0, 0, 255), (bar_x, bar_y + 1, bar_width, 1))
+
+            # Draw the filled part of the extra power bar
+            pygame.draw.rect(
+                screen, (0, 255, 255), (bar_x, bar_y + 2, extra_filled_width, 1)
+            )
 
     def equip(
         self,

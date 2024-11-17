@@ -35,8 +35,8 @@ class ShooterGame:
         self.screen = pygame.Surface(size)
         self.factory = SurfaceFactory(asset_folders)
         self.keybindings = keybindings
-        self.font = pygame.font.Font(pygame.font.get_default_font(), 12)
-        self.small_font = pygame.font.Font(pygame.font.get_default_font(), 8)
+        self.font = pygame.font.Font("assets/mystery-font.ttf", 12)
+        self.small_font = pygame.font.Font("assets/mystery-font.ttf", 8)
         self.bg = pygame.image.load("bg/nebula_288.png").convert()
         self.bg.set_alpha(96)
         self.player_group = pygame.sprite.RenderPlain()
@@ -206,7 +206,7 @@ class ShooterGame:
                         )
 
     def draw_progress(self) -> None:
-        text = self.font.render(f"{self.progress}", True, (255, 255, 255))
+        text = self.font.render(f"{self.progress}", False, (255, 255, 255))
         coord = (5, 5)
         self.screen.blit(text, coord)
 
@@ -214,18 +214,18 @@ class ShooterGame:
         color = "white"
         if self.score >= self.hi_score:
             color = "yellow"
-        text = self.font.render(f"{self.score}", True, color)
+        text = self.font.render(f"{self.score}", False, color)
         coord = ((self.screen.get_width() - text.get_width()) // 2, 5)
         self.screen.blit(text, coord)
 
     def draw_hi_score(self) -> None:
-        text = self.font.render(f"HI {self.hi_score}", True, (255, 255, 255))
+        text = self.font.render(f"HI {self.hi_score}", False, (255, 255, 255))
         coord = (self.screen.get_width() - text.get_width() - 5, 5)
         self.screen.blit(text, coord)
 
     def draw_messages(self) -> None:
         texts = [
-            self.font.render(m, True, (255, 255, 255)) for m in self.player_messages
+            self.font.render(m, False, (255, 255, 255)) for m in self.player_messages
         ]
         gap = 5
         total_height = sum(t.get_height() for t in texts) + gap * (len(texts) - 1)
@@ -238,14 +238,14 @@ class ShooterGame:
 
     def _render_menu(self) -> Generator[None, float, None]:
         mode = 1  # 0: blink, 1: show
-        text = self.font.render("Hit the space bar to start.", True, (255, 255, 255))
+        text = self.font.render("Hit the space bar to start.", False, (255, 255, 255))
         coord = (
             self.screen.get_rect().centerx - text.get_width() // 2,
             self.screen.get_rect().centery - text.get_height() // 2,
         )
         if self.build_info is not None:
             build_info_text = self.small_font.render(
-                self.build_info, True, (255, 255, 255)
+                self.build_info, False, (255, 255, 255)
             )
             build_info_coord = (
                 self.screen.get_width() - build_info_text.get_width() - 5,
@@ -333,7 +333,7 @@ class ShooterGame:
                 if mode == 20 or mode == 21:
                     text = self.font.render(
                         "Game Over.",
-                        True,
+                        False,
                         (255, 255, 255),
                     )
                     self.screen.blit(

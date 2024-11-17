@@ -25,6 +25,12 @@ class CrossHair(TrajectorySprite):
     pass
 
 
+def hit_box_collide(enemy: Enemy, candidate: pygame.sprite.Sprite) -> bool:
+    hb = enemy.get_hit_box()
+    hb.center = enemy.rect.center
+    return hb.colliderect(candidate.rect)
+
+
 class ShooterGame:
     def __init__(
         self,
@@ -140,7 +146,7 @@ class ShooterGame:
     def _check_bullet_collision(self) -> None:
         # Check for collisions between bullets and enemies
         enemy_collision_result = pygame.sprite.groupcollide(
-            self.enemy_group, self.player_bullet_group, False, True
+            self.enemy_group, self.player_bullet_group, False, True, hit_box_collide
         )
         enemy: Enemy
         shots: list[Shot]

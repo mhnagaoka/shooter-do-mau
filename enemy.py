@@ -203,10 +203,9 @@ class Brain(Enemy):
         self.__generator = self.__main_loop()
         next(self.__generator)
 
-    def get_hit_boxes(self) -> list[pygame.Rect]:
-        result = pygame.Rect(0, 0, 32, 32)
-        result.center = self.image.get_rect().center
-        return [result]
+    def get_hit_box(self) -> pygame.Rect:
+        result = pygame.Rect(0, 0, 16, 16)
+        return result
 
     def update(self, dt: float) -> None:
         super().update(dt)

@@ -79,9 +79,11 @@ class ShooterGame:
         self.player = Player(
             self.scale_factor, self.factory, keyboard, self.player_group
         )
+        turret = Turret(self.factory, self.player_bullet_group)
         self.player.equip(
             cannon=Cannon(self.factory, self.player_bullet_group),
-            turret=Turret(self.factory, self.player_bullet_group),
+            turret=turret,
+            turret2=turret,
             shield=Shield(),
         )
 

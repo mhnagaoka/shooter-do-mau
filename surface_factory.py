@@ -3,8 +3,6 @@ from typing import Generator
 
 import pygame
 
-from animation import Animation
-
 
 def slice_image(
     image: pygame.Surface,

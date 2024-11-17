@@ -361,9 +361,14 @@ class AnimatedSprite(Sprite):
         # Debug the bounding box
         if SPRITE_DEBUG:
             pygame.draw.rect(self.image, "magenta", self.image.get_rect(), 1)
+            for hb in self.get_hit_boxes():
+                pygame.draw.rect(self.image, "cyan", hb, 1)
         new_rect = self.image.get_rect()
         new_rect.center = self.rect.center
         self.rect = new_rect
+
+    def get_hit_boxes(self) -> list[pygame.Rect]:
+        return [self.image.get_rect()]
 
     def set_animation(
         self, animation: Animation, angle_offset: float | None = 0.0, reset_angle=False
@@ -373,7 +378,7 @@ class AnimatedSprite(Sprite):
             self.angle_offset = angle_offset
         if reset_angle:
             self.angle = 0.0
-        self._update_image()
+        # self._update_image()
         return self
 
     def on_animation_end(self, handler) -> "AnimatedSprite":

@@ -21,6 +21,10 @@ from shot import Shot
 from surface_factory import SurfaceFactory
 
 
+class CrossHair(TrajectorySprite):
+    pass
+
+
 class ShooterGame:
     def __init__(
         self,
@@ -80,7 +84,7 @@ class ShooterGame:
             self.scale_factor, self.screen.get_rect().center
         )
         crosshair_anim = Animation.static(self.factory.surfaces["shots"][0])
-        return TrajectorySprite(crosshair_anim, 0.0, mouse, self.crosshair_group)
+        return CrossHair(crosshair_anim, 0.0, mouse, self.crosshair_group)
 
     def _clean_up_oob_stuff(self) -> None:
         for b in self.player_bullet_group:
@@ -313,6 +317,8 @@ class ShooterGame:
                 self.player_bullet_group.draw(self.screen)
                 self.enemy_bullet_group.draw(self.screen)
                 self.explosion_group.draw(self.screen)
+                for enemy in self.enemy_group.sprites():
+                    enemy.draw_power_bar(self.screen)
                 for player in self.player_group.sprites():
                     player.draw_power_bar(self.screen)
                 self.draw_progress()

@@ -44,12 +44,23 @@ Run the code.
 python main.py
 ```
 
+You can also use the following environment variables:
+
+- `SCALE_FACTOR` the factor to scale the game's native resolution to the screen
+- `SPRITE_DEBUG` shows the sprite bounding boxes and hit boxes
+
 ### Sprite showcase
 
 To see the rendered sprites and resulting animations, run the tool below.
 
 ```sh
 python showcase.py
+```
+
+To check the program usage, pass the `--help` argument.
+
+```sh
+python showcase.py --help
 ```
 
 ### Spline tool

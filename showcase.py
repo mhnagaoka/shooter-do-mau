@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import pygame
@@ -8,12 +9,17 @@ from surface_factory import SurfaceFactory, trim
 
 
 def render_all(
-    factory: SurfaceFactory, animation: dict[str, Animation], screen: pygame.Surface
+    factory: SurfaceFactory,
+    assetname: list[str],
+    animation: dict[str, Animation],
+    screen: pygame.Surface,
 ):
     y = 0
     x = 0
     max_width = 0
     for name, raw_surface in factory.raw_surfaces.items():
+        if assetname and name not in assetname:
+            continue
         # draw a border around the surface
         # border = surface.get_rect()
         # border.topleft = (0, y)
@@ -21,7 +27,7 @@ def render_all(
         # 2x transform
         name_surface = font.render(
             f"{name} {raw_surface.get_rect().width}x{raw_surface.get_rect().height}",
-            True,
+            False,
             "white",
         )
 
@@ -72,9 +78,26 @@ def render_all(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="showcase.py", description="Showcase the sprites in the assets folder"
+    )
+    parser.add_argument(
+        "assetname",
+        nargs="*",
+        help="Name of the asset to showcase (show all if not provided)",
+    )
+    parser.add_argument(
+        "-d",
+        "--dimensions",
+        help="Screen dimensions WxH (288x288 if omitted)",
+        default="288x288",
+    )
+    args = parser.parse_args()
+    width, height = map(int, args.dimensions.split("x"))
+
     scale_factor = float(os.getenv("SCALE_FACTOR", 2.0))
     pygame.init()
-    screen = pygame.Surface((576, 576))
+    screen = pygame.Surface((width, height))
     display = pygame.display.set_mode(
         (
             round(screen.get_width() * scale_factor),
@@ -83,7 +106,7 @@ if __name__ == "__main__":
     )
     pygame.display.set_caption("Surface Factory")
     pygame.mouse.set_visible(False)
-    font = pygame.font.Font(pygame.font.get_default_font(), 12)
+    font = pygame.font.Font("assets/mystery-font.ttf", 8)
     clock = pygame.time.Clock()
     running = True
 
@@ -118,7 +141,7 @@ if __name__ == "__main__":
         # fill the screen with a color to wipe away anything from last frame
         screen.fill((0, 0, 0))
 
-        render_all(factory, animation, screen)
+        render_all(factory, args.assetname, animation, screen)
 
         # Update animations
         for anim in animation.values():

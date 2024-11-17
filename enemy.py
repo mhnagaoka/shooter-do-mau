@@ -34,6 +34,9 @@ class Enemy(TrajectorySprite):
         self.__generator = self.__main_loop()
         next(self.__generator)
 
+    def draw_power_bar(self, screen: pygame.Surface) -> None:
+        pass
+
     def update(self, dt: float) -> None:
         super().update(dt)
         self.__generator.send(dt)
@@ -200,9 +203,31 @@ class Brain(Enemy):
         self.__generator = self.__main_loop()
         next(self.__generator)
 
+    def get_hit_boxes(self) -> list[pygame.Rect]:
+        result = pygame.Rect(0, 0, 32, 32)
+        result.center = self.image.get_rect().center
+        return [result]
+
     def update(self, dt: float) -> None:
         super().update(dt)
         self.__generator.send(dt)
+
+    def draw_power_bar(self, screen: pygame.Surface) -> None:
+        # Define the size and position of the power bar
+        bar_width = 20
+        reference = self.rect
+        # bar_x = reference.x + (reference.width - bar_width) // 2
+        bar_x = reference.center[0] - bar_width // 2
+        bar_y = reference.center[1] - 18
+
+        # Calculate the width of the filled part of the bar
+        filled_width = int(bar_width * self.health / self.hit_points)
+
+        # Draw the background of the bar (empty part)
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, 1))
+
+        # Draw the filled part of the bar
+        pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, filled_width, 1))
 
     def shoot(self) -> None:
         if not self.shooting_enabled:

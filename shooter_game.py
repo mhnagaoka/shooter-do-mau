@@ -195,26 +195,29 @@ class ShooterGame:
                 elif isinstance(_item, item.IceCream):
                     player.power_source.supercharge()
                 elif isinstance(_item, item.TurboLaser):
-                    player.cannon.upgrade()
-                    if player.cannon is None or not isinstance(
+                    if player.cannon is not None and isinstance(
                         player.cannon, TurboLaser
                     ):
+                        player.cannon.upgrade()
+                    else:
                         player.equip(
                             cannon=TurboLaser(self.factory, self.player_bullet_group)
                         )
-                elif isinstance(_item, item.FlakCannon):
-                    player.turret.upgrade()
-                    if player.turret is None or not isinstance(
-                        player.turret, FlakCannon
-                    ):
-                        player.equip(
-                            turret=FlakCannon(self.factory, self.player_bullet_group)
-                        )
                 elif isinstance(_item, item.Minigun):
-                    player.turret.upgrade()
-                    if player.turret is None or not isinstance(player.turret, Minigun):
+                    if player.turret is not None and isinstance(player.turret, Minigun):
+                        player.turret.upgrade()
+                    else:
                         player.equip(
                             turret=Minigun(self.factory, self.player_bullet_group)
+                        )
+                elif isinstance(_item, item.FlakCannon):
+                    if player.turret2 is not None and isinstance(
+                        (player.turret2), FlakCannon
+                    ):
+                        player.turret2.upgrade()
+                    else:
+                        player.equip(
+                            turret2=FlakCannon(self.factory, self.player_bullet_group)
                         )
 
     def draw_progress(self) -> None:

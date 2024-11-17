@@ -286,9 +286,10 @@ class Player(TrajectorySprite):
         super().__init__(self.neutral_anim, None, keyboard, *groups)
         self.shooting_enabled = True
         self.power_source = None
-        self._cannon = None
-        self._turret = None
-        self._shield = None
+        self._cannon: Cannon = None
+        self._turret: Turret = None
+        self._turret2: Turret = None
+        self._shield: Shield = None
         self.equip(power_source=PowerSource())
         self.controls_enabled = True
         self.white_out_timer = 0.0
@@ -332,6 +333,7 @@ class Player(TrajectorySprite):
         power_source: PowerSource = None,
         cannon: Cannon = None,
         turret: Turret = None,
+        turret2: Turret = None,
         shield: Shield = None,
     ) -> None:
         if power_source is not None:
@@ -340,6 +342,8 @@ class Player(TrajectorySprite):
                 self._cannon.power_source = power_source
             if self._turret is not None:
                 self._turret.power_source = power_source
+            if self._turret2 is not None:
+                self._turret2.power_source = power_source
             if self._shield is not None:
                 self._shield.power_source = power_source
         if cannon is not None:
@@ -348,6 +352,9 @@ class Player(TrajectorySprite):
         if turret is not None:
             turret.power_source = self.power_source
             self._turret = turret
+        if turret2 is not None:
+            turret2.power_source = self.power_source
+            self._turret2 = turret2
         if shield is not None:
             shield.power_source = self.power_source
             self._shield = shield
@@ -359,6 +366,10 @@ class Player(TrajectorySprite):
     @property
     def turret(self) -> Turret:
         return self._turret
+
+    @property
+    def turret2(self) -> Turret:
+        return self._turret2
 
     def hit(self, damage: float) -> bool:
         if self._shield is not None and self._shield.absorb(damage):
@@ -380,20 +391,30 @@ class Player(TrajectorySprite):
         if self._cannon is not None:
             self._cannon.shoot(self.rect.center)
 
+    def _calculate_shooting_angle(self) -> float:
+        mouse_pos = pygame.mouse.get_pos()
+        player_pos = self.rect.center
+        aim_vector = (
+            mouse_pos[0] / self.scale_factor - player_pos[0],
+            mouse_pos[1] / self.scale_factor - player_pos[1],
+        )
+        if aim_vector == (0, 0):
+            aim_vector = (1, 0)
+        return -pygame.Vector2(aim_vector).angle_to(pygame.Vector2(1, 0))
+
     def _shoot_turret(self) -> None:
         if not self.shooting_enabled:
             return
         if self._turret is not None:
-            mouse_pos = pygame.mouse.get_pos()
-            player_pos = self.rect.center
-            aim_vector = (
-                mouse_pos[0] / self.scale_factor - player_pos[0],
-                mouse_pos[1] / self.scale_factor - player_pos[1],
-            )
-            if aim_vector == (0, 0):
-                aim_vector = (1, 0)
-            shooting_angle = -pygame.Vector2(aim_vector).angle_to(pygame.Vector2(1, 0))
+            shooting_angle = self._calculate_shooting_angle()
             self._turret.shoot(self.rect.center, shooting_angle)
+
+    def _shoot_turret2(self) -> None:
+        if not self.shooting_enabled:
+            return
+        if self._turret2 is not None:
+            shooting_angle = self._calculate_shooting_angle()
+            self._turret2.shoot(self.rect.center, shooting_angle)
 
     def _main_loop(self) -> Generator[None, float, None]:
         while True:
@@ -419,10 +440,13 @@ class Player(TrajectorySprite):
                     self.set_animation(self.neutral_anim, None)
             if keys[pygame.K_SPACE]:
                 self._shoot_cannon()
-            button, _, _ = pygame.mouse.get_pressed()
+            button, _, button2 = pygame.mouse.get_pressed()
             if button:
                 self._shoot_turret()
+            if button2:
+                self._shoot_turret2()
             self.power_source.charge(dt)
             self._cannon.update(dt)
             self._turret.update(dt)
+            self._turret2.update(dt)
             self.white_out_timer = max(self.white_out_timer - dt, 0.0)

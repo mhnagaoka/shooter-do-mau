@@ -50,8 +50,9 @@ async def main():
 
         await asyncio.sleep(0)
         dt = clock.tick(60) / 1000.0
+        fps = clock.get_fps()
         try:
-            game.update(events, dt)
+            game.update(events, dt, fps)
         except StopIteration:
             old = game
             game = ShooterGame(

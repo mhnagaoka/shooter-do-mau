@@ -67,8 +67,8 @@ class ShooterGame:
         self.menu_generator = self._render_menu()
         next(self.menu_generator)
 
-    def update(self, events: list[pygame.event.Event], dt: float) -> None:
-        self.generator.send((events, dt))
+    def update(self, events: list[pygame.event.Event], dt: float, fps: float) -> None:
+        self.generator.send((events, dt, fps))
 
     def _create_player(self) -> None:
         boundary = self.screen.get_rect().copy()
@@ -227,6 +227,11 @@ class ShooterGame:
         coord = (5, 5)
         self.screen.blit(text, coord)
 
+    def draw_fps(self, fps: float) -> None:
+        text = self.small_font.render(f"{fps:.1f}", False, (255, 255, 255))
+        coord = (5, 288 - text.get_height())
+        self.screen.blit(text, coord)
+
     def draw_score(self) -> None:
         color = "white"
         if self.score >= self.hi_score:
@@ -296,7 +301,7 @@ class ShooterGame:
         game_flow = GameFlow(self)
         mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
         while True:
-            events, dt = yield  # yields dt every time the game is updated
+            events, dt, fps = yield  # yields dt every time the game is updated
             self.screen.fill((0, 0, 0))
             self.screen.blit(self.bg, (0, 0))
             if mode == 0 or mode == 1:
@@ -334,6 +339,7 @@ class ShooterGame:
                     enemy.draw_power_bar(self.screen)
                 for player in self.player_group.sprites():
                     player.draw_power_bar(self.screen)
+                self.draw_fps(fps)
                 self.draw_progress()
                 self.draw_score()
                 self.draw_hi_score()

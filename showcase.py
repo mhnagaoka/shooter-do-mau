@@ -104,7 +104,7 @@ if __name__ == "__main__":
             round(screen.get_height() * scale_factor),
         )
     )
-    pygame.display.set_caption("Surface Factory")
+    pygame.display.set_caption("Showcase")
     pygame.mouse.set_visible(False)
     font = pygame.font.Font("assets/mystery-font.ttf", 8)
     clock = pygame.time.Clock()

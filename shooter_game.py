@@ -106,15 +106,21 @@ class ShooterGame:
                 i.kill()
 
     def _explode(self, sprite: TrajectorySprite, explosion_speed: float = 0.0):
-        frames = self.factory.surfaces["explosion"] + list(
+        explosion_frames = self.factory.surfaces["explosion"] + list(
             reversed(self.factory.surfaces["explosion"])
         )
-        sprite.set_animation(Animation(frames, 0.02))
+        if isinstance(sprite.trajectory_provider, StraightTrajectoryProvider):
+            prev_angle = -sprite.trajectory_provider.get_direction().angle_to(
+                pygame.Vector2(1, 0)
+            )
+        else:
+            prev_angle = None
+        sprite.set_animation(Animation(explosion_frames, 0.03))
         sprite.on_animation_end(lambda s: s.kill())
         sprite.trajectory_provider = StraightTrajectoryProvider(
             start=sprite.rect.center,
             end=None,
-            angle=sprite.angle,
+            angle=sprite.angle if not prev_angle else prev_angle,
             speed=explosion_speed,
         )
         # Some chance of enemy dropping a power capsule

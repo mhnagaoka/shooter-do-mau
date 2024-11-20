@@ -137,6 +137,9 @@ class StraightTrajectoryProvider(TrajectoryProvider):
     def get_current_angle(self) -> float:
         return self.angle
 
+    def get_direction(self) -> Vector2:
+        return self._direction
+
     def is_finished(self) -> bool:
         return self.position.distance_to(Vector2(self.start)) >= self._distance
 
@@ -348,7 +351,7 @@ class AnimatedSprite(Sprite):
         self.rect.left = 0
         self.angle = 0.0
         self.animation_end_handler = None
-        self.__gen = self.__create_gen()
+        self.__gen = self.__animation_loop()
         next(self.__gen)
 
     def _update_image(self) -> None:
@@ -386,18 +389,19 @@ class AnimatedSprite(Sprite):
         self.animation_end_handler = handler
         return self
 
-    def __create_gen(self) -> Generator[None, float, None]:
-        while not self.animation.is_finished():
-            dt = yield
-            self.animation.update(dt)
-            self._update_image()
-
-    def update(self, dt: float) -> None:
-        try:
-            self.__gen.send(dt)
-        except StopIteration:
+    def __animation_loop(self) -> Generator[None, float, None]:
+        while True:
+            while not self.animation.is_finished():
+                dt = yield
+                self.animation.update(dt)
+                self._update_image()
             if self.animation_end_handler:
                 self.animation_end_handler(self)
+            while self.animation.is_finished():
+                yield
+
+    def update(self, dt: float) -> None:
+        self.__gen.send(dt)
 
 
 class TrajectorySprite(AnimatedSprite):

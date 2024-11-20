@@ -12,21 +12,28 @@ class Animation:
         self.current_frame = 0
         self.current_delay = 0
         self.loop = loop
+        self._finished = False
 
     def update(self, dt: float) -> None:
         self.current_delay += dt
         if self.current_delay >= self.delay:
             self.current_delay = 0
             if self.loop:
-                self.current_frame = (self.current_frame + 1) % len(self.frames)
+                if self.current_frame >= len(self.frames) - 1:
+                    self.current_frame = 0
+                else:
+                    self.current_frame += 1
             else:
-                self.current_frame += 1
+                if self.current_frame < len(self.frames) - 1:
+                    self.current_frame += 1
+                else:
+                    self._finished = True
 
     def get_current_frame(self) -> Surface:
         return self.frames[min(self.current_frame, len(self.frames) - 1)]
 
     def is_finished(self) -> bool:
-        return not self.loop and self.current_frame >= len(self.frames)
+        return self._finished
 
     def reset(self) -> None:
         self.current_frame = 0

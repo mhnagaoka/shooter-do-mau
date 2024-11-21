@@ -3,13 +3,16 @@ from typing import TYPE_CHECKING, Generator
 
 import pygame
 
-from enemy import Brain, InsectEnemy, RedEnemy
+from enemy import Brain, InsectEnemy, Octo, RedEnemy
 from engine import (
+    EvadingTrajectoryProvider,
     KeyboardTrajectoryProvider,
     LinearSegmentsTrajectoryProvider,
     SeekingTrajectoryProvider,
+    StaticTrajectoryProvider,
     StraightTrajectoryProvider,
 )
+from player import FlakCannon, TurboLaser
 
 if TYPE_CHECKING:
     from shooter_game import ShooterGame
@@ -401,8 +404,7 @@ class GameFlow:
             self.create_bonus_red_enemy()
             yield from self._wait(1.0)
         # wait for all enemies to be defeated or go away
-        while self.game.enemy_group:
-            dt: float = yield
+        yield from self._wait_enemies_to_die()
         self.show_messages("Bonus round completed")
         yield from self._wait(1.0)
         self.show_messages()
@@ -410,7 +412,6 @@ class GameFlow:
 
     def _intro(self) -> Generator[None, float, None]:
         # Move the player ship to the center of the screen
-        self.show_messages("Get ready!", "", "")
         keyboard: KeyboardTrajectoryProvider = self.game.player.trajectory_provider
         self.game.player.trajectory_provider = StraightTrajectoryProvider(
             (keyboard.position.x, self.game.screen.get_height() + 10),
@@ -422,10 +423,6 @@ class GameFlow:
             yield
         # Give control back to the player
         self.game.player.trajectory_provider = keyboard
-        self.show_messages("GO! GO! GO!", "", "")
-        yield from self._wait(1.0)
-        self.show_messages()
-        yield from self._wait(0.5)
 
     def _boss_cut_scene(self) -> Generator[None, float, None]:
         self.game.player.disable_shooting()
@@ -466,7 +463,7 @@ class GameFlow:
     def _game_script(self) -> Generator[None, float, None]:
         state = GameState(self.game)
 
-        # # Boss test
+        # # Turbo laser
         # cannon = TurboLaser(self.game.factory, self.game.player_bullet_group, None)
         # cannon.upgrade()
         # cannon.upgrade()
@@ -474,19 +471,54 @@ class GameFlow:
         # cannon.upgrade()
         # cannon.upgrade()
         # self.game.player.equip(cannon=cannon)
+
+        # # Flak cannon
+        # self.game.player.equip(
+        #     turret2=FlakCannon(self.game.factory, self.game.player_bullet_group)
+        # )
+
         # state.update_difficulty(90)
         # yield from self._boss_cut_scene()
-        # self.create_boss(state)
+        # bosses = self.create_boss(state)
+        # for b in bosses:
+        #     b.disable_shooting()
         # yield from self._wait_enemies_to_die()
         # yield from self._wait(2.0)
         # return
+
+        # # trajectory = SeekingTrajectoryProvider(
+        # #     (144, 32), 90, 20.0, 2.0, self.game.player
+        # # )
+        # trajectory = StaticTrajectoryProvider((144, 32), 90.0)
+
+        # Teste Octo
+        # trajectory = EvadingTrajectoryProvider(
+        #     (144, -16), 90, 60.0, self.game.player, pygame.Rect(18, 18, 270, 270)
+        # )
+        # Octo(
+        #     self.game.factory,
+        #     trajectory,
+        #     self.game.player_group,
+        #     self.game.enemy_bullet_group,
+        #     self.game.enemy_group,
+        # )
+        # yield from self._wait_enemies_to_die()
+        # yield from self._wait(1.0)
 
         # Intro
         yield from self._intro()
 
         # Main gameplay loop
-        while state.difficulty <= 100:
+        while state.difficulty < 100:
             # Send 10 waves of enemies
+            self.show_messages("Get ready!", "", "")
+            yield from self._wait(1.0)
+            self.show_messages()
+            yield from self._wait(0.5)
+            self.show_messages("GO! GO! GO!", "", "")
+            yield from self._wait(1.0)
+            self.show_messages()
+            yield from self._wait(0.5)
             for wave in range(10):
                 if wave == 5:
                     yield from self._bonus_round()
@@ -498,11 +530,22 @@ class GameFlow:
             yield from self._boss_cut_scene()
             self.create_boss(state)
             yield from self._wait_enemies_to_die()
-            yield from self._wait(1.0)
-            self.show_messages("Get ready!", "", "")
-            yield from self._wait(1.0)
-            self.show_messages()
-            yield from self._wait(0.5)
+        self.show_messages("Final boss", "", "")
+        yield from self._wait(2.0)
+        self.show_messages()
+        yield from self._wait(0.5)
+        trajectory = EvadingTrajectoryProvider(
+            (144, -16), 90, 60.0, self.game.player, pygame.Rect(18, 18, 270, 270)
+        )
+        Octo(
+            self.game.factory,
+            trajectory,
+            self.game.player_group,
+            self.game.enemy_bullet_group,
+            self.game.enemy_group,
+        )
+        yield from self._wait_enemies_to_die()
+        yield from self._wait(2.0)
 
         # End game
         self.show_messages(

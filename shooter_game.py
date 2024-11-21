@@ -106,23 +106,25 @@ class ShooterGame:
                 i.kill()
 
     def _explode(self, sprite: TrajectorySprite, explosion_speed: float = 0.0):
+        sprite.kill()
         explosion_frames = self.factory.surfaces["explosion"] + list(
             reversed(self.factory.surfaces["explosion"])
         )
         if isinstance(sprite.trajectory_provider, StraightTrajectoryProvider):
-            prev_angle = -sprite.trajectory_provider.get_direction().angle_to(
+            trajectory_angle = -sprite.trajectory_provider.get_direction().angle_to(
                 pygame.Vector2(1, 0)
             )
         else:
-            prev_angle = None
-        sprite.set_animation(Animation(explosion_frames, 0.03))
-        sprite.on_animation_end(lambda s: s.kill())
-        sprite.trajectory_provider = StraightTrajectoryProvider(
+            trajectory_angle = None
+        straight = StraightTrajectoryProvider(
             start=sprite.rect.center,
             end=None,
-            angle=sprite.angle if not prev_angle else prev_angle,
+            angle=sprite.angle if not trajectory_angle else trajectory_angle,
             speed=explosion_speed,
         )
+        TrajectorySprite(
+            Animation(explosion_frames, 0.03), None, straight, self.explosion_group
+        ).on_animation_end(lambda s: s.kill())
         # Some chance of enemy dropping a power capsule
         if isinstance(sprite, RedEnemy):
             random_angle = random.uniform(-45.0, 45.0)
@@ -163,8 +165,6 @@ class ShooterGame:
                 if enemy.hit(shot):
                     self.score += 100
                     self._explode(enemy, 40.0)
-                    self.enemy_group.remove(enemy)
-                    self.explosion_group.add(enemy)
                     break  # you can die only once
         # Check for collisions between bullets and player
         player_collision_result = pygame.sprite.groupcollide(
@@ -176,9 +176,10 @@ class ShooterGame:
                 if self.player and self.player.hit(10.0):  # bullet damage
                     self.player.controls_enabled = False
                     self._explode(self.player, 0.0)
-                    self.player_group.remove(self.player)
-                    self.explosion_group.add(self.player)
                     self.player = None
+                    break
+            if self.player is None:
+                break
         # Check for collisions between bullets and items
         item_collision_result = pygame.sprite.groupcollide(
             self.item_group, self.player_bullet_group, False, True
@@ -186,8 +187,6 @@ class ShooterGame:
         for item_hit in item_collision_result.keys():
             self.score += 50
             self._explode(item_hit, 40.0)
-            self.item_group.remove(item_hit)
-            self.explosion_group.add(item_hit)
         # TODO: Check for collisions between enemies and player
 
     def _check_item_collision(self) -> None:

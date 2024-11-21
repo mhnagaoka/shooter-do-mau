@@ -31,7 +31,7 @@ class Enemy(TrajectorySprite):
         self.hit_points = hit_points
         self.health = hit_points
         self.shooting_enabled = True
-        self.__generator = self.__main_loop()
+        self.__generator = self.__shoot_loop()
         next(self.__generator)
 
     def draw_power_bar(self, screen: pygame.Surface) -> None:
@@ -58,11 +58,13 @@ class Enemy(TrajectorySprite):
         return True
 
     def set_animation(self, animation, angle_offset=0, reset_angle=False):
+        # Restore original frames in case it was white out
+        self.animation.frames = self.original_frames
         self.original_frames = animation.frames
         self.white_out_frames = [white_out(frame) for frame in animation.frames]
         return super().set_animation(animation, angle_offset, reset_angle)
 
-    def __main_loop(self) -> typing.Generator[None, float, None]:
+    def __shoot_loop(self) -> typing.Generator[None, float, None]:
         dt: float
         while True:
             while self.white_out_timer <= 0.0:
@@ -89,7 +91,7 @@ class RedEnemy(Enemy):
         # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
         missile_surfaces = [crop(s, 6, 4, 3, 8) for s in factory.surfaces["missile"]]
         self.bullet_anim = Animation(missile_surfaces, 0.05, loop=True)
-        self.__generator = self.__main_loop()
+        self.__generator = self.__shoot_loop()
         next(self.__generator)
 
     def update(self, dt: float) -> None:
@@ -118,7 +120,7 @@ class RedEnemy(Enemy):
         )
         TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
 
-    def __main_loop(self) -> typing.Generator[None, float, None]:
+    def __shoot_loop(self) -> typing.Generator[None, float, None]:
         cannon_timer = 0.1
         while True:
             dt: float = yield  # yields dt every time the game is updated
@@ -149,7 +151,7 @@ class InsectEnemy(Enemy):
         )
         self.shot_speed = 80.0
         self.cannon_timer = 2.0
-        self.__generator = self.__main_loop()
+        self.__generator = self.__shoot_loop()
         next(self.__generator)
 
     def update(self, dt: float) -> None:
@@ -172,7 +174,7 @@ class InsectEnemy(Enemy):
         )
         TrajectorySprite(self.bullet_anim, None, straight, self.bullet_group)
 
-    def __main_loop(self) -> typing.Generator[None, float, None]:
+    def __shoot_loop(self) -> typing.Generator[None, float, None]:
         cannon_timer = 0.1
         while True:
             dt: float = yield  # yields dt every time the game is updated
@@ -200,7 +202,7 @@ class Brain(Enemy):
         # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
         missile_surfaces = [crop(s, 6, 4, 3, 8) for s in factory.surfaces["missile"]]
         self.bullet_anim = Animation(missile_surfaces, 0.05, loop=True)
-        self.__generator = self.__main_loop()
+        self.__generator = self.__shoot_loop()
         next(self.__generator)
 
     def get_hit_box(self) -> pygame.Rect:
@@ -260,7 +262,7 @@ class Brain(Enemy):
         )
         TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
 
-    def __main_loop(self) -> typing.Generator[None, float, None]:
+    def __shoot_loop(self) -> typing.Generator[None, float, None]:
         cannon_timer = 0.1
         dt: float = 0.0
         while True:
@@ -279,3 +281,128 @@ class Brain(Enemy):
                 dt = yield
             self.shoot()
             cannon_timer = 0.75
+
+
+class Octo(Enemy):
+    def __init__(
+        self,
+        factory: SurfaceFactory,
+        trajectory: TrajectoryProvider,
+        player_group: pygame.sprite.AbstractGroup,
+        bullet_group: pygame.sprite.AbstractGroup,
+        *groups: pygame.sprite.AbstractGroup,
+    ) -> None:
+        self.neutral_anim = Animation.static(factory.surfaces["octo"][3])
+        self.left_shoot_anim = Animation(factory.surfaces["octo"][3:7], 0.2, loop=False)
+        self.right_shoot_anim = Animation(
+            factory.surfaces["octo"][-2:] + factory.surfaces["octo"][:2],
+            0.2,
+            loop=False,
+        )
+        super().__init__(self.neutral_anim, None, trajectory, 1500.0, *groups)
+        self.player_group = player_group
+        self.bullet_group = bullet_group
+        # missile_surfaces = [trim(s) for s in factory.surfaces["missile"]]
+        missile_surfaces = factory.surfaces["bullet-2"]
+        self.bullet_anim = Animation(missile_surfaces, 0.1, loop=True)
+        self.__generators = [self.__shoot_loop(), self.__regen_loop()]
+        for g in self.__generators:
+            next(g)
+
+    def get_hit_box(self) -> pygame.Rect:
+        result = pygame.Rect(0, 0, 16, 16)
+        return result
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        for g in self.__generators:
+            g.send(dt)
+
+    def draw_power_bar(self, screen: pygame.Surface) -> None:
+        # Define the size and position of the power bar
+        bar_width = 20
+        reference = self.rect
+        # bar_x = reference.x + (reference.width - bar_width) // 2
+        bar_x = reference.center[0] - bar_width // 2
+        bar_y = reference.center[1] - 18
+
+        # Calculate the width of the filled part of the bar
+        filled_width = int(bar_width * self.health / self.hit_points)
+
+        # Draw the background of the bar (empty part)
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, 1))
+
+        # Draw the filled part of the bar
+        pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, filled_width, 1))
+
+    def shoot(self, left: bool) -> None:
+        if not self.shooting_enabled:
+            return
+        if not self.player_group:
+            return
+
+        def fire(_):
+            self.set_animation(self.neutral_anim, None)
+            self.on_animation_end(None)
+
+            if not self.player_group:
+                return
+            player = self.player_group.sprites()[0]
+            initial_pos = self.rect.center
+            direction = -pygame.Vector2(
+                player.rect.center[0] - initial_pos[0],
+                player.rect.center[1] - initial_pos[1],
+            ).angle_to(pygame.Vector2(1, 0))
+            normal = pygame.Vector2(1, 0).rotate(direction).rotate(90)
+            base = pygame.Vector2(self.rect.center)
+            if left:
+                missile_pos = base + normal * 16
+            else:
+                missile_pos = base - normal * 16
+
+            seeking = SeekingTrajectoryProvider(
+                (missile_pos.x, missile_pos.y),
+                90.0,
+                100.0,
+                1.5,
+                player,
+                1000.0,
+            )
+            TrajectorySprite(
+                self.bullet_anim, None, seeking, self.bullet_group
+            ).on_trajectory_end(lambda s: s.kill())
+
+        shoot_anim = self.left_shoot_anim if left else self.right_shoot_anim
+        shoot_anim.reset()
+        self.set_animation(shoot_anim, None)
+        self.on_animation_end(fire)
+        # seeking = SeekingTrajectoryProvider(
+        #     (missile_pos[1].x, missile_pos[1].y),
+        #     self.trajectory_provider.get_current_angle(),
+        #     150.0,
+        #     1.0,
+        #     player,
+        # )
+        # TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
+
+    def __shoot_loop(self) -> typing.Generator[None, float, None]:
+        cannon_timer = 1.0
+        dt: float = 0.0
+        left = True
+        while True:
+            while cannon_timer > 0.0:
+                cannon_timer -= dt
+                dt = yield
+            self.shoot(left)
+            left = not left
+            cannon_timer = 1.0
+
+    def __regen_loop(self) -> typing.Generator[None, float, None]:
+        regen_timer = 0.0
+        dt: float = 0.0
+        while True:
+            while regen_timer > 0.0:
+                regen_timer -= dt
+                dt = yield
+            self.health = min(self.hit_points, self.health + 40.0)
+            regen_timer = 1.0

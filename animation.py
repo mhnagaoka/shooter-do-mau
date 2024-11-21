@@ -38,3 +38,4 @@ class Animation:
     def reset(self) -> None:
         self.current_frame = 0
         self.current_delay = 0
+        self._finished = False

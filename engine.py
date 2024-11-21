@@ -195,6 +195,7 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
         speed: float,
         angular_speed: float,
         mark: Sprite,
+        length: float = None,
     ):
         self.start = start
         self.speed = speed
@@ -203,6 +204,8 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
         self.mark = mark
         self.position = Vector2(start)
         self.direction = Vector2(self.mark.rect.center) - self.position
+        self.length = length
+        self.distance = 0.0
         super().__init__()
 
     def update(self, dt: float) -> None:
@@ -221,6 +224,53 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
                 new_angle = self.angle - max_diff
             self.angle = new_angle
             self.direction = Vector2(1, 0).rotate(new_angle)
+        self.position += self.direction * self.speed * dt
+        self.distance += self.speed * dt
+
+    def get_current_position(self) -> tuple[int, int]:
+        return (int(self.position.x), int(self.position.y))
+
+    def get_current_angle(self) -> float:
+        return self.angle
+
+    def is_finished(self) -> bool:
+        if not self.length:
+            return False
+        return self.distance >= self.length
+
+
+class EvadingTrajectoryProvider(TrajectoryProvider):
+    def __init__(
+        self,
+        start: tuple[int, int],
+        angle: float,
+        speed: float,
+        mark: Sprite,
+        bounds: pygame.Rect,
+    ):
+        self.start = start
+        self.speed = speed
+        self.angle = angle
+        self.mark = mark
+        self.bounds = bounds
+        self.position = Vector2(start)
+        self.direction = Vector2(0, 0)
+        super().__init__()
+
+    def new_heading(self) -> tuple[Vector2, float]:
+        goal = Vector2(self.bounds.center) - Vector2(self.mark.rect.center)
+        if goal.length() > 0.0:
+            goal.normalize_ip()
+            goal = goal * (self.bounds.width / 2) + Vector2(self.bounds.center)
+            new_direction = goal - self.position
+            new_direction.normalize_ip()
+            new_angle = -new_direction.angle_to(Vector2(1, 0))
+            return (new_direction, new_angle)
+        return (self.direction, self.angle)
+
+    def update(self, dt: float) -> None:
+        if self.mark.alive():
+            self.direction, self.angle = self.new_heading()
         self.position += self.direction * self.speed * dt
 
     def get_current_position(self) -> tuple[int, int]:
@@ -429,9 +479,9 @@ class TrajectorySprite(AnimatedSprite):
             self.trajectory_provider.update(dt)
             self.angle = self.trajectory_provider.get_current_angle()
             self.rect.center = self.trajectory_provider.get_current_position()
-            super().update(dt)
 
     def update(self, dt: float) -> None:
+        super().update(dt)
         had_finished = self.trajectory_provider.is_finished()
         try:
             self.__gen.send(dt)

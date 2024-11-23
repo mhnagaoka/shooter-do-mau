@@ -1,16 +1,13 @@
+import os
+from dataclasses import dataclass
 from enum import Flag, auto
-from typing import TYPE_CHECKING, Generator
+from typing import Generator
 
 import pygame
 from pygame import Vector2
 from pygame.sprite import Sprite
-from pygame.surface import Surface
 
 from animation import Animation
-
-if TYPE_CHECKING:
-    from shooter_game import ShooterGame
-import os
 
 SPRITE_DEBUG = os.getenv("SPRITE_DEBUG", "False").lower() in ("true", "1", "t")
 
@@ -292,6 +289,12 @@ class Direction(Flag):
     CCW = auto()
 
 
+@dataclass
+class VirtualKeyboard:
+    direction: Direction = Direction(0)
+    fire: bool = False
+
+
 type Keybindings = dict[int, Direction]
 
 default_keybindings: Keybindings = {
@@ -312,6 +315,7 @@ class KeyboardTrajectoryProvider(TrajectoryProvider):
         initial_speed: float,
         initial_rotation_speed: float,
         keybindings: Keybindings = default_keybindings,
+        virtual_keyboard: VirtualKeyboard = VirtualKeyboard(),
     ) -> None:
         self.boundary = boundary
         self.position = Vector2(initial_position)
@@ -319,10 +323,11 @@ class KeyboardTrajectoryProvider(TrajectoryProvider):
         self.speed = initial_speed
         self.rotation_speed = initial_rotation_speed
         self.keybindings = keybindings
+        self.virtual_keyboard = virtual_keyboard
 
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
-        dir_flags = Direction(0)
+        dir_flags = self.virtual_keyboard.direction
         for key, direction in self.keybindings.items():
             if keys[key]:
                 dir_flags |= direction

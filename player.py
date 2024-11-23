@@ -1,12 +1,15 @@
+import sys
 from typing import Generator
 
 import pygame
 
 from animation import Animation
 from engine import (
+    Direction,
     KeyboardTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectorySprite,
+    VirtualKeyboard,
 )
 from item import PowerCapsule
 from shot import Shot
@@ -262,6 +265,7 @@ class Player(TrajectorySprite):
         scale_factor: float,
         factory: SurfaceFactory,
         keyboard: KeyboardTrajectoryProvider,
+        virtual_keyboard: VirtualKeyboard,
         *groups: pygame.sprite.AbstractGroup,
     ) -> None:
         self.scale_factor = scale_factor
@@ -284,6 +288,7 @@ class Player(TrajectorySprite):
             loop=True,
         )
         super().__init__(self.neutral_anim, None, keyboard, *groups)
+        self.virtual_keyboard = virtual_keyboard
         self.shooting_enabled = True
         self.power_source = None
         self._cannon: Cannon = None
@@ -423,12 +428,16 @@ class Player(TrajectorySprite):
                 continue
             # Ugly hack to update the animation based on the pressed keys
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+            if (
+                keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]
+            ) or self.virtual_keyboard.direction == Direction.LEFT:
                 if self.white_out_timer > 0.0:
                     self.set_animation(self.left_anim_white_out, None)
                 else:
                     self.set_animation(self.left_anim, None)
-            elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+            elif (
+                keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]
+            ) or self.virtual_keyboard.direction == Direction.RIGHT:
                 if self.white_out_timer > 0.0:
                     self.set_animation(self.right_anim_white_out, None)
                 else:
@@ -438,13 +447,16 @@ class Player(TrajectorySprite):
                     self.set_animation(self.neutral_anim_white_out, None)
                 else:
                     self.set_animation(self.neutral_anim, None)
-            if keys[pygame.K_SPACE]:
+            if keys[pygame.K_SPACE] or self.virtual_keyboard.fire:
                 self._shoot_cannon()
-            button, _, button2 = pygame.mouse.get_pressed()
-            if button:
-                self._shoot_turret()
-            if button2:
-                self._shoot_turret2()
+            # if we are not running in the browser, we can use the mouse buttons
+            # this is not to confuse pygame with the touch events
+            if sys.platform != "emscripten":
+                button, _, button2 = pygame.mouse.get_pressed()
+                if button:
+                    self._shoot_turret()
+                if button2:
+                    self._shoot_turret2()
             self.power_source.charge(dt)
             self._cannon.update(dt)
             self._turret.update(dt)

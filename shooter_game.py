@@ -4,18 +4,19 @@ from typing import Generator
 import pygame
 import pygame.event
 
-from game_flow import GameFlow
 import item
 from animation import Animation
 from enemy import Enemy, RedEnemy
 from engine import (
+    Keybindings,
     KeyboardTrajectoryProvider,
     MouseTrajectoryProvider,
     StraightTrajectoryProvider,
     TrajectorySprite,
-    Keybindings,
+    VirtualKeyboard,
     default_keybindings,
 )
+from game_flow import GameFlow
 from player import Cannon, FlakCannon, Minigun, Player, Shield, TurboLaser, Turret
 from shot import Shot
 from surface_factory import SurfaceFactory
@@ -45,6 +46,7 @@ class ShooterGame:
         self.screen = pygame.Surface(size)
         self.factory = SurfaceFactory(asset_folders)
         self.keybindings = keybindings
+        self.virtual_keyboard = VirtualKeyboard()
         self.font = pygame.font.Font("assets/mystery-font.ttf", 12)
         self.small_font = pygame.font.Font("assets/mystery-font.ttf", 8)
         self.bg = pygame.image.load("bg/nebula_288.png").convert()
@@ -61,23 +63,34 @@ class ShooterGame:
         self.progress = 0
         self.score = 0
         self.hi_score = 0
-        self.generator = self._main_loop()
         self.player_messages = []
-        next(self.generator)
+        self.generators = [self._virtual_keyboard_loop(), self._main_loop()]
+        for g in self.generators:
+            next(g)
         self.menu_generator = self._render_menu()
         next(self.menu_generator)
 
     def update(self, events: list[pygame.event.Event], dt: float, fps: float) -> None:
-        self.generator.send((events, dt, fps))
+        for g in self.generators:
+            g.send((events, dt, fps))
 
     def _create_player(self) -> None:
         boundary = self.screen.get_rect().copy()
         boundary.update(10, 10, boundary.width - 20, boundary.height - 22)
         keyboard = KeyboardTrajectoryProvider(
-            boundary, boundary.center, 150.0, 0.0, self.keybindings
+            boundary,
+            boundary.center,
+            150.0,
+            0.0,
+            self.keybindings,
+            self.virtual_keyboard,
         )
         self.player = Player(
-            self.scale_factor, self.factory, keyboard, self.player_group
+            self.scale_factor,
+            self.factory,
+            keyboard,
+            self.virtual_keyboard,
+            self.player_group,
         )
         turret = Turret(self.factory, self.player_bullet_group)
         self.player.equip(
@@ -302,7 +315,22 @@ class ShooterGame:
             self.crosshair_group.draw(self.screen)
             self.draw_hi_score()
 
-    def _main_loop(self) -> Generator[None, float, None]:
+    def _virtual_keyboard_loop(
+        self,
+    ) -> Generator[None, tuple[list[pygame.event.Event], float, float], None]:
+        while True:
+            events, _, _ = yield
+            for event in events:
+                if event.type == pygame.USEREVENT:
+                    if event.direction is not None:
+                        self.virtual_keyboard.direction = event.direction
+                    if event.fire is not None:
+                        self.virtual_keyboard.fire = event.fire
+                    print(self.virtual_keyboard)
+
+    def _main_loop(
+        self,
+    ) -> Generator[None, tuple[list[pygame.event.Event], float, float], None]:
         game_flow = GameFlow(self)
         mode = 0  # 0, 1: menu, 10: game, 20, 21: game over
         while True:
@@ -323,6 +351,10 @@ class ShooterGame:
                         and event.type == pygame.KEYUP
                         and event.unicode == " "
                     ):
+                        mode = 10
+                    elif mode == 0 and self.virtual_keyboard.fire:
+                        mode = 1
+                    elif mode == 1 and not self.virtual_keyboard.fire:
                         mode = 10
             elif mode == 10 or mode == 20 or mode == 21:
                 game_flow.update(dt)

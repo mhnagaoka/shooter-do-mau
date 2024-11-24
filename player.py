@@ -1,5 +1,5 @@
 import sys
-from typing import Generator
+from typing import Generator, Optional
 
 import pygame
 
@@ -21,7 +21,7 @@ class Cannon:
         self,
         factory: SurfaceFactory,
         bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
+        power_source: Optional["PowerSource"] = None,
     ) -> None:
         self.bullet_group = bullet_group
         self.bullet_anim = Animation.static(
@@ -66,7 +66,7 @@ class TurboLaser(Cannon):
         self,
         factory: SurfaceFactory,
         bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
+        power_source: Optional["PowerSource"] = None,
     ) -> None:
         super().__init__(factory, bullet_group, power_source)
         self._upgrade_path = [
@@ -112,7 +112,7 @@ class Turret:
         self,
         factory: SurfaceFactory,
         bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
+        power_source: Optional["PowerSource"] = None,
     ) -> None:
         self.bullet_group = bullet_group
         self.bullet_anim = Animation.static(
@@ -156,7 +156,7 @@ class Minigun(Turret):
         self,
         factory: SurfaceFactory,
         bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
+        power_source: Optional["PowerSource"] = None,
     ) -> None:
         super().__init__(factory, bullet_group, power_source)
         self.bullet_anim = Animation.static(
@@ -182,7 +182,7 @@ class FlakCannon(Turret):
         self,
         factory: SurfaceFactory,
         bullet_group: pygame.sprite.AbstractGroup,
-        power_source: "PowerSource" = None,
+        power_source: Optional["PowerSource"] = None,
     ) -> None:
         super().__init__(factory, bullet_group, power_source)
         self.bullet_anim = Animation.static(
@@ -213,7 +213,7 @@ class FlakCannon(Turret):
 
 
 class Shield:
-    def __init__(self, power_source: "PowerSource" = None) -> None:
+    def __init__(self, power_source: Optional["PowerSource"] = None) -> None:
         self.power_source = power_source
         # Unit of damage absorbed per unit of power consumed (higher is better)
         self.efficiency = 10.0 / 20.0  # 10 of damage absorbed per 20 of power consumed
@@ -236,10 +236,10 @@ class Shield:
 
 
 class PowerSource:
-    def __init__(self):
-        self.capacity = 100
-        self.power = 100.0
-        self.power_regen = 10.0
+    def __init__(self, capacity: float = 100.0, power_regen: float = 10.0) -> None:
+        self.capacity = capacity
+        self.power = capacity
+        self.power_regen = power_regen
 
     def charge(self, dt: float):
         if self.power < self.capacity:
@@ -290,11 +290,11 @@ class Player(TrajectorySprite):
         super().__init__(self.neutral_anim, None, keyboard, *groups)
         self.virtual_keyboard = virtual_keyboard
         self.shooting_enabled = True
-        self.power_source = None
-        self._cannon: Cannon = None
-        self._turret: Turret = None
-        self._turret2: Turret = None
-        self._shield: Shield = None
+        self.power_source = PowerSource(capacity=0.0, power_regen=0.0)
+        self._cannon: Optional[Cannon] = None
+        self._turret: Optional[Turret] = None
+        self._turret2: Optional[Turret] = None
+        self._shield: Optional[Shield] = None
         self.equip(power_source=PowerSource())
         self.controls_enabled = True
         self.white_out_timer = 0.0
@@ -312,7 +312,13 @@ class Player(TrajectorySprite):
         bar_y = self.rect.y + self.rect.height + 2
 
         # Calculate the width of the filled part of the bar
-        filled_width = int(bar_width * min(self.power_source.power, 100.0) / 100.0)
+        if self.power_source:
+            current_power = self.power_source.power
+            capacity = self.power_source.capacity
+        else:
+            current_power = 0.0
+            capacity = 0.0
+        filled_width = int(bar_width * min(current_power, 100.0) / 100.0)
 
         # Draw the background of the bar (empty part)
         pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, 1))
@@ -320,13 +326,13 @@ class Player(TrajectorySprite):
         # Draw the filled part of the bar
         pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, filled_width, 1))
 
-        extra_power = max(self.power_source.power - self.power_source.capacity, 0)
+        extra_power = current_power - capacity
         if extra_power > 0:
             # Calculate the width of the filled part of the extra power bar
             extra_filled_width = int(bar_width * min(extra_power, 100.0) / 100.0)
 
             # Draw the background of the extra power bar (empty part)
-            pygame.draw.rect(screen, (0, 0, 255), (bar_x, bar_y + 1, bar_width, 1))
+            pygame.draw.rect(screen, (0, 127, 255), (bar_x, bar_y + 2, bar_width, 1))
 
             # Draw the filled part of the extra power bar
             pygame.draw.rect(
@@ -335,11 +341,11 @@ class Player(TrajectorySprite):
 
     def equip(
         self,
-        power_source: PowerSource = None,
-        cannon: Cannon = None,
-        turret: Turret = None,
-        turret2: Turret = None,
-        shield: Shield = None,
+        power_source: Optional[PowerSource] = None,
+        cannon: Optional[Cannon] = None,
+        turret: Optional[Turret] = None,
+        turret2: Optional[Turret] = None,
+        shield: Optional[Shield] = None,
     ) -> None:
         if power_source is not None:
             self.power_source = power_source
@@ -365,15 +371,15 @@ class Player(TrajectorySprite):
             self._shield = shield
 
     @property
-    def cannon(self) -> Cannon:
+    def cannon(self) -> Cannon | None:
         return self._cannon
 
     @property
-    def turret(self) -> Turret:
+    def turret(self) -> Turret | None:
         return self._turret
 
     @property
-    def turret2(self) -> Turret:
+    def turret2(self) -> Turret | None:
         return self._turret2
 
     def hit(self, damage: float) -> bool:
@@ -458,7 +464,10 @@ class Player(TrajectorySprite):
                 if button2:
                     self._shoot_turret2()
             self.power_source.charge(dt)
-            self._cannon.update(dt)
-            self._turret.update(dt)
-            self._turret2.update(dt)
+            if self._cannon:
+                self._cannon.update(dt)
+            if self._turret:
+                self._turret.update(dt)
+            if self._turret2:
+                self._turret2.update(dt)
             self.white_out_timer = max(self.white_out_timer - dt, 0.0)

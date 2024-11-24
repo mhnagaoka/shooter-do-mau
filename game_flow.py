@@ -9,10 +9,8 @@ from engine import (
     KeyboardTrajectoryProvider,
     LinearSegmentsTrajectoryProvider,
     SeekingTrajectoryProvider,
-    StaticTrajectoryProvider,
     StraightTrajectoryProvider,
 )
-from player import FlakCannon, TurboLaser
 
 if TYPE_CHECKING:
     from shooter_game import ShooterGame
@@ -167,7 +165,7 @@ class GameState:
         self.update_difficulty(0)
 
     @property
-    def difficulty(self) -> float:
+    def difficulty(self) -> int:
         return self._difficulty
 
     def update_difficulty(self, value: int) -> None:
@@ -412,10 +410,13 @@ class GameFlow:
 
     def _intro(self) -> Generator[None, float, None]:
         # Move the player ship to the center of the screen
-        keyboard: KeyboardTrajectoryProvider = self.game.player.trajectory_provider
+        keyboard = self.game.player.trajectory_provider
+        if not isinstance(keyboard, KeyboardTrajectoryProvider):
+            raise TypeError("Expected KeyboardTrajectoryProvider")
+        k_pos = keyboard.get_current_position()
         self.game.player.trajectory_provider = StraightTrajectoryProvider(
-            (keyboard.position.x, self.game.screen.get_height() + 10),
-            (keyboard.position.x, keyboard.position.y),
+            (k_pos[0], self.game.screen.get_height() + 10),
+            (k_pos[0], k_pos[1]),
             None,
             80.0,
         )
@@ -430,7 +431,9 @@ class GameFlow:
         yield from self._wait(1.0)
         self.show_messages()
         yield from self._wait(0.5)
-        keyboard: KeyboardTrajectoryProvider = self.game.player.trajectory_provider
+        keyboard = self.game.player.trajectory_provider
+        if not isinstance(keyboard, KeyboardTrajectoryProvider):
+            raise TypeError("Expected KeyboardTrajectoryProvider")
         self.game.player.trajectory_provider = LinearSegmentsTrajectoryProvider(
             [self.game.player.rect.center, self.game.screen.get_rect().center], 80.0, 0
         )

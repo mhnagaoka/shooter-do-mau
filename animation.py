@@ -10,7 +10,7 @@ class Animation:
         self.frames = frames
         self.delay = delay
         self.current_frame = 0
-        self.current_delay = 0
+        self.current_delay = 0.0
         self.loop = loop
         self._finished = False
 

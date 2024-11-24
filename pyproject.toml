@@ -9,3 +9,8 @@ dependencies = [
 ]
 [tool.ruff]
 exclude = ["bspline.py"]
+
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.13.0",
+]

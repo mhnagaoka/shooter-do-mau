@@ -1,7 +1,9 @@
+from typing import Self
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Flag, auto
-from typing import Generator
+from typing import Generator, Optional
 
 import pygame
 from pygame import Vector2
@@ -12,16 +14,20 @@ from animation import Animation
 SPRITE_DEBUG = os.getenv("SPRITE_DEBUG", "False").lower() in ("true", "1", "t")
 
 
-class TrajectoryProvider:
+class TrajectoryProvider(ABC):
+    @abstractmethod
     def update(self, dt: float) -> None:
         pass
 
+    @abstractmethod
     def get_current_position(self) -> tuple[int, int]:
         pass
 
+    @abstractmethod
     def get_current_angle(self) -> float:
         pass
 
+    @abstractmethod
     def is_finished(self) -> bool:
         pass
 
@@ -66,7 +72,7 @@ class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
             self._total_length += delta_length
         self._distance = 0.0
         self._position = ctrlpoints[0]
-        self._angle = (end - begin).angle_to(Vector2(1, 0))
+        self._angle = -(end - begin).angle_to(Vector2(1, 0))
         self.shift = shift
 
     def update(self, dt: float) -> None:
@@ -85,10 +91,11 @@ class LinearSegmentsTrajectoryProvider(TrajectoryProvider):
 
     def get_current_position(self) -> tuple[int, int]:
         if self.shift != 0.0:
-            return (
+            pos_vec = (
                 Vector2(self._position)
                 + Vector2(1, 0).rotate(90 + self._angle) * self.shift
             )
+            return (int(pos_vec.x), int(pos_vec.y))
         return self._position
 
     def get_current_angle(self) -> float:
@@ -102,15 +109,14 @@ class StraightTrajectoryProvider(TrajectoryProvider):
     def __init__(
         self,
         start: tuple[int, int],
-        end: tuple[int, int],
-        angle: float,
+        end: Optional[tuple[int, int]],
+        angle: Optional[float],
         speed: float,
         angular_speed: float = 0.0,
     ) -> None:
         self.start = start
         self.end = end
         self.speed = speed
-        self.angle = angle
         self.position = Vector2(start)
         if end is not None:
             self._direction = Vector2(end) - Vector2(start)
@@ -119,6 +125,7 @@ class StraightTrajectoryProvider(TrajectoryProvider):
         elif angle is not None:
             self._direction = Vector2(1, 0).rotate(angle)
             self._distance = float("Infinity")
+            self.angle = angle
         else:
             raise ValueError("Either end or angle must be provided")
         self.angular_speed = angular_speed
@@ -191,8 +198,8 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
         angle: float,
         speed: float,
         angular_speed: float,
-        mark: Sprite,
-        length: float = None,
+        mark: "AnimatedSprite",
+        length: Optional[float] = None,
     ):
         self.start = start
         self.speed = speed
@@ -200,7 +207,7 @@ class SeekingTrajectoryProvider(TrajectoryProvider):
         self.angle = angle
         self.mark = mark
         self.position = Vector2(start)
-        self.direction = Vector2(self.mark.rect.center) - self.position
+        self.direction = Vector2(*self.mark.rect.center) - self.position
         self.length = length
         self.distance = 0.0
         super().__init__()
@@ -242,7 +249,7 @@ class EvadingTrajectoryProvider(TrajectoryProvider):
         start: tuple[int, int],
         angle: float,
         speed: float,
-        mark: Sprite,
+        mark: "AnimatedSprite",
         bounds: pygame.Rect,
     ):
         self.start = start
@@ -295,7 +302,7 @@ class VirtualKeyboard:
     fire: bool = False
 
 
-type Keybindings = dict[int, Direction]
+Keybindings = dict[int, Direction]
 
 default_keybindings: Keybindings = {
     pygame.K_UP: Direction.UP,
@@ -463,7 +470,7 @@ class TrajectorySprite(AnimatedSprite):
     def __init__(
         self,
         animation: Animation,
-        angle_offset: float,
+        angle_offset: Optional[float],
         trajectory_provider: TrajectoryProvider,
         *groups,
     ) -> None:
@@ -474,7 +481,7 @@ class TrajectorySprite(AnimatedSprite):
         self.__gen = self.__create_gen()
         next(self.__gen)
 
-    def on_trajectory_end(self, handler) -> "TrajectorySprite":
+    def on_trajectory_end(self, handler) -> Self:
         self.trajectory_end_handler = handler
         return self
 

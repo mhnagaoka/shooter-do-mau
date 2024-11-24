@@ -19,7 +19,7 @@ class Enemy(TrajectorySprite):
     def __init__(
         self,
         animation: Animation,
-        angle_offset: float,
+        angle_offset: typing.Optional[float],
         trajectory_provider: TrajectoryProvider,
         hit_points: float,
         *groups: typing.Any,
@@ -246,7 +246,7 @@ class Brain(Enemy):
         missile_pos = (base + normal * 12, base - normal * 12)
 
         seeking = SeekingTrajectoryProvider(
-            (missile_pos[0].x, missile_pos[0].y),
+            (round(missile_pos[0].x), round(missile_pos[0].y)),
             self.trajectory_provider.get_current_angle(),
             150.0,
             1.0,
@@ -254,7 +254,7 @@ class Brain(Enemy):
         )
         TrajectorySprite(self.bullet_anim, -90.0, seeking, self.bullet_group)
         seeking = SeekingTrajectoryProvider(
-            (missile_pos[1].x, missile_pos[1].y),
+            (round(missile_pos[1].x), round(missile_pos[1].y)),
             self.trajectory_provider.get_current_angle(),
             150.0,
             1.0,

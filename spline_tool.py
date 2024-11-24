@@ -2,6 +2,7 @@ import os
 from enum import IntEnum
 
 import pygame
+from pygame.sprite import RenderPlain
 
 import engine
 from animation import Animation
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     pygame.display.set_caption("Spline Tool")
     mouse_pos = pygame.mouse.get_pos()
     clock = pygame.time.Clock()
-    dt = 0
+    dt = 0.0
     running = True
     mouse_trajectory_provider = engine.MouseTrajectoryProvider(scale_factor)
     mouse_pos = mouse_trajectory_provider.position
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     ctrl_rects: list[pygame.Rect] = list()
     trajectory = None
     factory = SurfaceFactory(["assets"])
-    group = pygame.sprite.RenderPlain()
+    group: RenderPlain = RenderPlain()
 
     while running:
         # pygame.QUIT event means the user clicked X to close your window
@@ -87,7 +88,7 @@ if __name__ == "__main__":
                     break
             tool_mode = ToolMode.SHOW_LINES
         if keys[pygame.K_h] and (prev_keys is None or not prev_keys[pygame.K_h]):
-            tool_mode = (tool_mode + 1) % len(ToolMode)
+            tool_mode = ToolMode((tool_mode + 1) % len(ToolMode))
         if keys[pygame.K_RETURN] and (
             prev_keys is None or not prev_keys[pygame.K_RETURN]
         ):
@@ -157,6 +158,6 @@ if __name__ == "__main__":
         # limits FPS to 60
         # dt is delta time in seconds since last frame, used for framerate-
         # independent physics.
-        dt = clock.tick(60) / 1000
+        dt = clock.tick(60) / 1000.0
 
     pygame.quit()

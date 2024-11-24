@@ -63,7 +63,7 @@ class ShooterGame:
         self.progress = 0
         self.score = 0
         self.hi_score = 0
-        self.player_messages = []
+        self.player_messages: list[str] = []
         self.generators = [self._virtual_keyboard_loop(), self._main_loop()]
         for g in self.generators:
             next(g)

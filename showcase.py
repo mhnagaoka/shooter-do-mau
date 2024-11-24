@@ -2,6 +2,7 @@ import argparse
 import os
 
 import pygame
+from pygame.sprite import RenderPlain
 
 from animation import Animation
 from engine import KeyboardTrajectoryProvider, MouseTrajectoryProvider, TrajectorySprite
@@ -114,19 +115,19 @@ if __name__ == "__main__":
     animation = dict()
     for name, frames in factory.surfaces.items():
         animation[name] = Animation(frames, 0.1, loop=True)
-    dt = 0
+    dt = 0.0
 
     player_trajectory_provider = KeyboardTrajectoryProvider(
         screen.get_rect(), (240, 240), 150.0, 180.0
     )
-    player_group = pygame.sprite.RenderPlain()
+    player_group: RenderPlain = RenderPlain()
     player_anim = Animation(factory.surfaces["player-ship"], 0.1, loop=True)
     player = TrajectorySprite(
         player_anim, 0.0, player_trajectory_provider, player_group
     )
 
     mouse_trajectory_provider = MouseTrajectoryProvider(scale_factor)
-    reticle_group = pygame.sprite.RenderPlain()
+    reticle_group: RenderPlain = RenderPlain()
     reticle_anim = Animation.static(factory.surfaces["shots"][0])
     reticle = TrajectorySprite(
         reticle_anim, 0.0, mouse_trajectory_provider, reticle_group
